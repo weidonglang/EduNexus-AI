@@ -21,5 +21,32 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return
+            }
+            if (id.includes('echarts') || id.includes('zrender')) {
+              return 'vendor-echarts'
+            }
+            if (id.includes('element-plus') || id.includes('@element-plus')) {
+              return 'vendor-element-plus'
+            }
+            if (id.includes('lucide-vue-next') || id.includes('@element-plus/icons-vue')) {
+              return 'vendor-icons'
+            }
+            if (id.includes('vue') || id.includes('pinia')) {
+              return 'vendor-vue'
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios'
+            }
+            return 'vendor'
+          },
+        },
+      },
+    },
   }
 })
