@@ -53,22 +53,6 @@ public interface RolePermissionMapper {
             """)
     List<String> findMenuCodesByRoleId(@Param("roleId") Long roleId);
 
-    @Select("""
-            select p.code
-            from sys_permission p
-            join sys_role_permission rp on rp.permission_id = p.id
-            where rp.role_id = #{roleId}
-            order by p.code asc
-            """)
-    List<String> findPermissionCodesByRoleId(@Param("roleId") Long roleId);
-
-    @Select("""
-            select code, name, description
-            from sys_permission
-            order by code asc
-            """)
-    List<CapabilityRow> findCapabilities();
-
     @Delete("""
             delete from sys_role_menu
             where role_id = #{roleId}
@@ -98,13 +82,6 @@ public interface RolePermissionMapper {
             String icon,
             String parentCode,
             Integer sortOrder
-    ) {
-    }
-
-    record CapabilityRow(
-            String code,
-            String name,
-            String description
     ) {
     }
 }

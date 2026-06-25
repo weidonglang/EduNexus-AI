@@ -1,7 +1,6 @@
 package weidonglang.tianshiwebside.common.api;
 
 import java.time.Instant;
-import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 
 /**
  * 全系统统一接口返回格式。
@@ -18,7 +17,7 @@ public record ApiResponse<T>(
         Instant timestamp
 ) {
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>("0", "success", data, TraceIdHolder.get(), Instant.now());
+        return new ApiResponse<>("0", "success", data, null, Instant.now());
     }
 
     public static ApiResponse<Void> success() {

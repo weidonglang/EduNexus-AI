@@ -168,33 +168,27 @@ public class DataInitializer {
             seedMenu("graduation-design", "\u6bd5\u8bbe\u8bba\u6587", "/graduation-design", "FileText", null, 80);
             seedMenu("thesis-grade", "\u8bba\u6587\u6210\u7ee9\u67e5\u770b", "/information/thesis-grade", "Award", "graduation-design", 81);
             seedMenu("teacher", "\u6559\u5e08\u5de5\u4f5c\u53f0", "/teacher", "Presentation", null, 55);
-            seedMenu("teacher-offerings", "\u4efb\u8bfe\u8bfe\u7a0b", "/teacher/courses", "BookOpen", "teacher", 56);
+            seedMenu("teacher-offerings", "\u4efb\u8bfe\u8bfe\u7a0b", "/teacher/offerings", "BookOpen", "teacher", 56);
             seedMenu("teacher-grades", "\u6210\u7ee9\u5f55\u5165", "/teacher/grades", "SquarePen", "teacher", 57);
             seedMenu("teacher-exams", "\u8003\u8bd5\u5b89\u6392", "/teacher/exams", "CalendarClock", "teacher", 58);
             seedMenu("teacher-evaluations", "\u8bc4\u4ef7\u7ed3\u679c", "/teacher/evaluations", "ChartColumn", "teacher", 59);
             seedMenu("admin", "\u6559\u52a1\u7ba1\u7406", "/admin", "Settings", null, 60);
-            seedMenu("admin-classes", "\u73ed\u7ea7\u4e0e\u5b66\u751f", "/admin/classes", "UsersRound", "admin", 60);
             seedMenu("admin-course-offerings", "\u8bfe\u7a0b\u4e0e\u6559\u5b66\u73ed", "/admin/course-offerings", "BookOpenCheck", "admin", 61);
             seedMenu("admin-status-changes", "\u5b66\u7c4d\u5f02\u52a8\u5ba1\u6838", "/admin/status-changes", "FileCheck2", "admin", 62);
             seedMenu("admin-role-permissions", "\u89d2\u8272\u6743\u9650\u7ba1\u7406", "/admin/role-permissions", "ShieldCheck", "admin", 63);
-            seedMenu("admin-permission-matrix", "\u6743\u9650\u77e9\u9635", "/admin/permission-matrix", "ShieldCheck", "admin", 64);
-            seedMenu("admin-users", "\u7528\u6237\u4e0e\u89d2\u8272", "/admin/users", "UsersRound", "admin", 65);
-            seedMenu("admin-evaluations", "\u6559\u5b66\u8bc4\u4ef7\u7edf\u8ba1", "/admin/evaluations", "ChartColumn", "admin", 66);
-            seedMenu("admin-grades", "\u6210\u7ee9\u7ba1\u7406", "/admin/grades", "FileSpreadsheet", "admin", 67);
-            seedMenu("admin-exams", "\u8003\u8bd5\u7ba1\u7406", "/admin/exams", "ClipboardCheck", "admin", 68);
-            seedMenu("admin-notices", "\u901a\u77e5\u516c\u544a", "/admin/notices", "Megaphone", "admin", 69);
-            seedMenu("admin-files", "\u6587\u4ef6\u7ba1\u7406", "/admin/files", "FolderOpen", "admin", 70);
-            seedMenu("admin-audit-logs", "\u64cd\u4f5c\u5ba1\u8ba1", "/admin/audit-logs", "ScrollText", "admin", 71);
-            seedMenu("admin-registration-applications", "\u62a5\u540d\u7533\u8bf7\u5ba1\u6838", "/admin/registration-applications", "FileCheck2", "admin", 72);
-            seedMenu("admin-system-health", "\u7cfb\u7edf\u5065\u5eb7\u4e2d\u5fc3", "/admin/system-health", "Activity", "admin", 73);
-            seedMenu("admin-redis-monitor", "Redis\u72b6\u6001\u76d1\u63a7", "/admin/redis-monitor", "DatabaseZap", "admin", 74);
-            seedMenu("admin-course-selection-consistency", "\u9009\u8bfe\u4e00\u81f4\u6027\u62a5\u544a", "/admin/course-selection-consistency", "ListChecks", "admin", 75);
-            seedMenu("admin-data-dictionary", "\u6570\u636e\u5b57\u5178", "/admin/data-dictionary", "BookMarked", "admin", 76);
-            seedMenu("admin-sensitive-words", "\u654f\u611f\u8bcd\u4e0e\u5185\u5bb9\u5b89\u5168", "/admin/sensitive-words", "ShieldAlert", "admin", 77);
-            seedMenu("admin-load-test-reports", "\u538b\u6d4b\u5386\u53f2\u62a5\u544a", "/admin/load-test-reports", "ChartColumnBig", "admin", 78);
-            seedMenu("admin-database-browser", "\u6570\u636e\u5e93\u53ea\u8bfb\u6d4f\u89c8", "/admin/database-browser", "TableProperties", "admin", 79);
-            seedMenu("admin-ai-sql", "\u81ea\u7136\u8bed\u8a00\u67e5\u5e93", "/admin/ai-sql", "Sparkles", "admin", 80);
-            seedMenu("admin-ai-logs", "AI\u8c03\u7528\u65e5\u5fd7", "/admin/ai-logs", "ScrollText", "admin", 81);
+            seedMenu("admin-users", "\u7528\u6237\u4e0e\u89d2\u8272", "/admin/users", "UsersRound", "admin", 64);
+            seedMenu("admin-evaluations", "\u6559\u5b66\u8bc4\u4ef7\u7edf\u8ba1", "/admin/evaluations", "ChartColumn", "admin", 65);
+            seedMenu("admin-grades", "\u6210\u7ee9\u7ba1\u7406", "/admin/grades", "FileSpreadsheet", "admin", 66);
+            seedMenu("admin-exams", "\u8003\u8bd5\u7ba1\u7406", "/admin/exams", "ClipboardCheck", "admin", 67);
+            seedMenu("admin-notices", "\u901a\u77e5\u516c\u544a", "/admin/notices", "Megaphone", "admin", 68);
+            seedMenu("admin-files", "\u6587\u4ef6\u7ba1\u7406", "/admin/files", "FolderOpen", "admin", 69);
+            seedMenu("admin-audit-logs", "\u64cd\u4f5c\u5ba1\u8ba1", "/admin/audit-logs", "ScrollText", "admin", 70);
+            seedMenu("admin-registration-applications", "\u62a5\u540d\u7533\u8bf7\u5ba1\u6838", "/admin/registration-applications", "FileCheck2", "admin", 71);
+            seedMenu("admin-redis-monitor", "Redis\u72b6\u6001\u76d1\u63a7", "/admin/redis-monitor", "DatabaseZap", "admin", 72);
+            seedMenu("admin-load-test-reports", "\u538b\u6d4b\u5386\u53f2\u62a5\u544a", "/admin/load-test-reports", "ChartColumnBig", "admin", 73);
+            seedMenu("admin-database-browser", "\u6570\u636e\u5e93\u53ea\u8bfb\u6d4f\u89c8", "/admin/database-browser", "TableProperties", "admin", 74);
+            seedMenu("admin-ai-sql", "\u81ea\u7136\u8bed\u8a00\u67e5\u5e93", "/admin/ai-sql", "Sparkles", "admin", 75);
+            seedMenu("admin-ai-logs", "AI\u8c03\u7528\u65e5\u5fd7", "/admin/ai-logs", "ScrollText", "admin", 76);
             seedPermission("COURSE_WRITE", "\u8bfe\u7a0b\u5199\u5165", "\u7ef4\u62a4\u8bfe\u7a0b\u548c\u6559\u5b66\u73ed");
             seedPermission("GRADE_READ", "\u6210\u7ee9\u67e5\u770b", "\u67e5\u770b\u6210\u7ee9\u6570\u636e");
             seedPermission("GRADE_WRITE", "\u6210\u7ee9\u5199\u5165", "\u5f55\u5165\u548c\u4fee\u6539\u6210\u7ee9");
@@ -250,11 +244,9 @@ public class DataInitializer {
                     "ai-assistant",
                     "ai-chat",
                     "admin",
-                    "admin-classes",
                     "admin-course-offerings",
                     "admin-status-changes",
                     "admin-role-permissions",
-                    "admin-permission-matrix",
                     "admin-users",
                     "admin-evaluations",
                     "admin-grades",
@@ -263,11 +255,7 @@ public class DataInitializer {
                     "admin-files",
                     "admin-audit-logs",
                     "admin-registration-applications",
-                    "admin-system-health",
                     "admin-redis-monitor",
-                    "admin-course-selection-consistency",
-                    "admin-data-dictionary",
-                    "admin-sensitive-words",
                     "admin-load-test-reports",
                     "admin-database-browser",
                     "admin-ai-sql",
@@ -357,7 +345,6 @@ public class DataInitializer {
             seedClassroom("\u4e1c\u533a", "C\u6559\u5b66\u697c", "C-101", 90, "\u9636\u68af\u6559\u5ba4", "5-6\u8282");
             seedRichDemoData(studentRole, openStart, openEnd);
             seedFixedTestAccounts(adminRole, teacherRole, studentRole);
-            seedAcademicClassesFromStudents();
             seedInformationCenterData(student);
         }
 
@@ -553,13 +540,6 @@ public class DataInitializer {
         private void seedMenu(String code, String title, String path, String icon, String parentCode, int sortOrder) {
             if (!menuRepository.existsByCode(code)) {
                 menuRepository.save(new SysMenu(code, title, path, icon, parentCode, sortOrder));
-            } else {
-                jdbcTemplate.update("""
-                                update sys_menu
-                                set title = ?, path = ?, icon = ?, parent_code = ?, sort_order = ?
-                                where code = ?
-                                """,
-                        title, path, icon, parentCode, sortOrder, code);
             }
         }
 
@@ -705,41 +685,6 @@ public class DataInitializer {
             if (!classroomRepository.existsByRoom(room)) {
                 classroomRepository.save(new Classroom(campus, building, room, capacity, roomType, availableSlot));
             }
-        }
-
-        private void seedAcademicClassesFromStudents() {
-            List<StudentClassSeedRow> rows = jdbcTemplate.query("""
-                            select college, major, grade, class_name
-                            from student
-                            where class_name is not null
-                              and class_name <> ''
-                              and class_name <> '未分班'
-                            group by college, major, grade, class_name
-                            order by college, major, grade, class_name
-                            """,
-                    (rs, rowNum) -> new StudentClassSeedRow(
-                            rs.getString("college"),
-                            rs.getString("major"),
-                            rs.getString("grade"),
-                            rs.getString("class_name")
-                    ));
-            for (StudentClassSeedRow row : rows) {
-                Integer existingCount = jdbcTemplate.queryForObject(
-                        "select count(*) from academic_class where class_name = ?",
-                        Integer.class,
-                        row.className()
-                );
-                if (existingCount == null || existingCount == 0) {
-                    jdbcTemplate.update("""
-                                    insert into academic_class (college, major, grade, class_name, advisor, created_at, updated_at)
-                                    values (?, ?, ?, ?, ?, ?, ?)
-                                    """,
-                            row.college(), row.major(), row.grade(), row.className(), "张老师", Instant.now(), Instant.now());
-                }
-            }
-        }
-
-        private record StudentClassSeedRow(String college, String major, String grade, String className) {
         }
 
         private CourseOffering findOffering(String courseCode, String term) {

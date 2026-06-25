@@ -7,14 +7,6 @@ public record AiAssistantResponse(
         List<AiSourceDocument> sources,
         String serviceMode,
         String answerType,
-        String refusalReason,
-        String confidenceLevel,
-        double confidenceScore,
-        String modelName,
-        boolean realModel,
-        boolean fallbackUsed,
-        Long latencyMs,
-        String traceId,
-        Long callLogId
+        String refusalReason
 ) {
 }

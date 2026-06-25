@@ -18,7 +18,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 
 @Configuration
 @EnableWebSecurity
@@ -71,16 +70,12 @@ public class SecurityConfig {
      */
     private void writeApiError(jakarta.servlet.http.HttpServletResponse response, HttpStatus status, String code, String message)
             throws java.io.IOException {
-        String traceId = TraceIdHolder.get();
         response.setStatus(status.value());
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        if (traceId != null) {
-            response.setHeader(TraceIdHolder.TRACE_ID_HEADER, traceId);
-        }
         response.getWriter().write("""
-                {"code":"%s","message":"%s","data":null,"traceId":"%s","timestamp":"%s"}
-                """.formatted(code, message, traceId == null ? "" : traceId, java.time.Instant.now()));
+                {"code":"%s","message":"%s","data":null,"traceId":null,"timestamp":"%s"}
+                """.formatted(code, message, java.time.Instant.now()));
     }
 
     @Bean

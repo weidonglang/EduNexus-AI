@@ -51,28 +51,6 @@ public class RolePermissionController {
         return ApiResponse.success(rolePermissionMapper.findMenus());
     }
 
-    @GetMapping("/matrix")
-    /**
-     * 功能：查询角色权限矩阵。
-     * 说明：返回角色、菜单权限、能力权限以及每个角色拥有的权限集合，供管理端
-     * /admin/permission-matrix 页面展示“学生 / 教师 / 管理员能访问什么”。
-     */
-    public ApiResponse<PermissionMatrixResponse> matrix() {
-        List<RolePermissionMapper.RoleRow> roles = rolePermissionMapper.findRoles();
-        List<RolePermissionMapper.MenuPermissionRow> menus = rolePermissionMapper.findMenus();
-        List<RolePermissionMapper.CapabilityRow> capabilities = rolePermissionMapper.findCapabilities();
-        List<RoleMatrixRow> roleRows = roles.stream()
-                .map(role -> new RoleMatrixRow(
-                        role.roleId(),
-                        role.code(),
-                        role.name(),
-                        rolePermissionMapper.findMenuCodesByRoleId(role.roleId()),
-                        rolePermissionMapper.findPermissionCodesByRoleId(role.roleId())
-                ))
-                .toList();
-        return ApiResponse.success(new PermissionMatrixResponse(roles, menus, capabilities, roleRows));
-    }
-
     @GetMapping("/roles/{roleId}/menus")
     public ApiResponse<List<String>> roleMenus(@PathVariable Long roleId) {
         ensureRoleExists(roleId);
@@ -115,23 +93,6 @@ public class RolePermissionController {
 
     public record UpdateRoleMenusRequest(
             @NotNull List<String> menuCodes
-    ) {
-    }
-
-    public record PermissionMatrixResponse(
-            List<RolePermissionMapper.RoleRow> roles,
-            List<RolePermissionMapper.MenuPermissionRow> menus,
-            List<RolePermissionMapper.CapabilityRow> capabilities,
-            List<RoleMatrixRow> roleRows
-    ) {
-    }
-
-    public record RoleMatrixRow(
-            Long roleId,
-            String roleCode,
-            String roleName,
-            List<String> menuCodes,
-            List<String> capabilityCodes
     ) {
     }
 }

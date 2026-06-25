@@ -1,7 +1,6 @@
 package weidonglang.tianshiwebside.ai;
 
 import org.springframework.stereotype.Service;
-import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 
 import java.security.Principal;
 import java.util.List;
@@ -23,60 +22,23 @@ public class AiAssistantService {
         Refusal refusal = refusal(question);
         if (refusal != null) {
             callLogService.record(principal, "RAG_REFUSAL", question, "policy", elapsedMillis(start), true, refusal.reason());
-            return response(refusal.answer(), List.of(), "policy", "REFUSAL", refusal.reason(), elapsedMillis(start));
+            return new AiAssistantResponse(refusal.answer(), List.of(), "policy", "REFUSAL", refusal.reason());
         }
         List<AiSourceDocument> sources = knowledgeService.retrieve(question, principal);
         if (sources.isEmpty() || sources.stream().mapToDouble(AiSourceDocument::score).max().orElse(0) < 2.0) {
             String answer = "当前系统未检索到足够的教务依据，建议联系教务管理员或查看最新通知公告。";
             callLogService.record(principal, "RAG_NO_EVIDENCE", question, "retrieval", elapsedMillis(start), true, "no matched source");
-            return response(answer, sources, "retrieval", "NO_ANSWER", "知识库没有命中足够依据", elapsedMillis(start));
+            return new AiAssistantResponse(answer, sources, "retrieval", "NO_ANSWER", "知识库没有命中足够依据");
         }
         return remoteClient.ask(question, sources)
                 .map(response -> {
                     callLogService.record(principal, "RAG", question, response.serviceMode(), elapsedMillis(start), true, null);
-                    return response(response.answer(), sources, response.serviceMode(), "ANSWER", null, elapsedMillis(start));
+                    return new AiAssistantResponse(response.answer(), sources, response.serviceMode(), "ANSWER", null);
                 })
                 .orElseGet(() -> {
                     callLogService.record(principal, "RAG_FALLBACK", question, "local-fallback", elapsedMillis(start), true, "ai-service unavailable");
-                    return response(buildFallbackAnswer(question, sources), sources, "local-fallback", "ANSWER", null, elapsedMillis(start));
+                    return new AiAssistantResponse(buildFallbackAnswer(question, sources), sources, "local-fallback", "ANSWER", null);
                 });
-    }
-
-    private AiAssistantResponse response(
-            String answer,
-            List<AiSourceDocument> sources,
-            String serviceMode,
-            String answerType,
-            String refusalReason,
-            long latencyMs
-    ) {
-        double maxScore = sources.stream().mapToDouble(AiSourceDocument::score).max().orElse(0);
-        String confidence = confidenceLevel(sources.size(), maxScore, serviceMode, answerType);
-        return new AiAssistantResponse(
-                answer,
-                sources,
-                serviceMode,
-                answerType,
-                refusalReason,
-                confidence,
-                Math.min(1.0, Math.max(0.0, maxScore / 5.0)),
-                serviceMode,
-                !serviceMode.contains("fallback") && !serviceMode.equals("retrieval") && !serviceMode.equals("policy"),
-                serviceMode.contains("fallback") || serviceMode.equals("retrieval") || serviceMode.equals("policy"),
-                latencyMs,
-                TraceIdHolder.get(),
-                null
-        );
-    }
-
-    private String confidenceLevel(int evidenceCount, double maxScore, String serviceMode, String answerType) {
-        if (!"ANSWER".equals(answerType) || serviceMode.contains("fallback") || evidenceCount == 0) {
-            return "LOW";
-        }
-        if (evidenceCount >= 2 && maxScore >= 4.0) {
-            return "HIGH";
-        }
-        return "MEDIUM";
     }
 
     private String buildFallbackAnswer(String question, List<AiSourceDocument> sources) {

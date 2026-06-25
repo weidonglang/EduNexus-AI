@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
-import weidonglang.tianshiwebside.governance.ContentModerationService;
 import weidonglang.tianshiwebside.notice.mapper.NoticeMapper;
 
 import java.security.Principal;
@@ -23,20 +22,17 @@ public class AdminNoticeController {
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
     private final QueryCacheService queryCacheService;
-    private final ContentModerationService moderationService;
 
     public AdminNoticeController(
             NoticeMapper noticeMapper,
             NotificationService notificationService,
             AuditLogService auditLogService,
-            QueryCacheService queryCacheService,
-            ContentModerationService moderationService
+            QueryCacheService queryCacheService
     ) {
         this.noticeMapper = noticeMapper;
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
         this.queryCacheService = queryCacheService;
-        this.moderationService = moderationService;
     }
 
     @PostMapping
@@ -46,7 +42,6 @@ public class AdminNoticeController {
      * 并为目标用户生成通知，用于首页公告、选课通知、考试通知和审核通知展示。
      */
     public ApiResponse<NoticeMapper.NoticeRow> publish(Principal principal, @Valid @RequestBody PublishNoticeRequest request) {
-        moderationService.check("NOTICE", request.title() + "\n" + request.content(), principal.getName(), true);
         NoticeMapper.NoticeCommand command = new NoticeMapper.NoticeCommand(
                 request.title().trim(), request.content().trim(), request.category().trim(), request.pinned(),
                 Instant.now(), principal.getName());

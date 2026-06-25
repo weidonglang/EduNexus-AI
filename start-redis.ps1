@@ -25,8 +25,12 @@ function Invoke-Docker {
 }
 
 function Test-DockerReady {
-    docker version --format "Docker server {{.Server.Version}}" *> $null
-    return $LASTEXITCODE -eq 0
+    try {
+        docker version --format "Docker server {{.Server.Version}}" | Out-Null
+        return $true
+    } catch {
+        return $false
+    }
 }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -97,14 +101,9 @@ if (-not $existing) {
         Write-Host "Starting Redis container $ContainerName..." -ForegroundColor Cyan
         $startExit = Invoke-Docker @("start", $ContainerName)
         if ($startExit -ne 0) {
-            $runningAfterRetry = docker ps --filter "name=^/$ContainerName$" --format "{{.Names}}"
-            if ($runningAfterRetry) {
-                Write-Host "Redis container $ContainerName is running after retry." -ForegroundColor Green
-            } else {
-                Write-Host "Docker failed to start Redis container $ContainerName." -ForegroundColor Red
-                Write-Host "Try: docker logs $ContainerName"
-                exit 1
-            }
+            Write-Host "Docker failed to start Redis container $ContainerName." -ForegroundColor Red
+            Write-Host "Try: docker logs $ContainerName"
+            exit 1
         }
     } else {
         Write-Host "Redis container $ContainerName is already running." -ForegroundColor Green
