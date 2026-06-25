@@ -1,3 +1,4 @@
 @echo off
 cd /d "%~dp0"
-npx http-server . -p 8090
+if "%PREVIEW_PORT%"=="" set "PREVIEW_PORT=8091"
+npx http-server . -p %PREVIEW_PORT%

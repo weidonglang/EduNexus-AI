@@ -1,0 +1,36 @@
+:root {
+  --nexus-bg: #f1f3f6;
+  --nexus-surface: #ffffff;
+  --nexus-surface-soft: #f7f8fa;
+  --nexus-text: #111827;
+  --nexus-text-muted: #697382;
+  --nexus-border: #dce2ea;
+  --nexus-primary: #2f5f9f;
+  --nexus-primary-strong: #223f72;
+  --nexus-primary-soft: #edf3fb;
+  --nexus-accent: #b7792f;
+  --nexus-accent-soft: #fbf1e5;
+  --nexus-success: #3b7a64;
+  --nexus-success-soft: #e9f7f1;
+  --nexus-warning: #b7792f;
+  --nexus-warning-soft: #fbf1e5;
+  --nexus-danger: #b95858;
+  --nexus-danger-soft: #fff1f1;
+  --nexus-info: #3f8fa3;
+  --nexus-info-soft: #edf8fb;
+  --nexus-radius: 8px;
+  --nexus-shadow-sm: 0 8px 22px rgba(16, 24, 40, 0.05);
+  --nexus-shadow-md: 0 18px 45px rgba(25, 39, 63, 0.09);
+  --nexus-focus: 0 0 0 3px rgba(47, 95, 159, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

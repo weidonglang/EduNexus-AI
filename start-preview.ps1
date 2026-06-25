@@ -1,2 +1,3 @@
 Set-Location -LiteralPath $PSScriptRoot
-npx http-server . -p 8090
+$PreviewPort = if ($env:PREVIEW_PORT) { $env:PREVIEW_PORT } else { "8091" }
+npx http-server . -p $PreviewPort

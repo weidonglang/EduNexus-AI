@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import weidonglang.tianshiwebside.ai.AiRemoteClient;
+import weidonglang.tianshiwebside.ai.AiServiceStatusResponse;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.api.PageResponse;
 import weidonglang.tianshiwebside.common.api.Pagination;
@@ -32,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -40,18 +43,47 @@ public class SystemMonitorController {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
     private final StringRedisTemplate redisTemplate;
+    private final AiRemoteClient aiRemoteClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final JdbcTemplate jdbcTemplate;
     private final Path reportDir;
+    private final Path uploadRoot;
 
     public SystemMonitorController(
             StringRedisTemplate redisTemplate,
+            AiRemoteClient aiRemoteClient,
             JdbcTemplate jdbcTemplate,
-            @Value("${load-test.report-dir:reports}") String reportDir
+            @Value("${load-test.report-dir:reports}") String reportDir,
+            @Value("${app.upload-root:uploads}") String uploadRoot
     ) {
         this.redisTemplate = redisTemplate;
+        this.aiRemoteClient = aiRemoteClient;
         this.jdbcTemplate = jdbcTemplate;
         this.reportDir = Path.of(reportDir).toAbsolutePath().normalize();
+        this.uploadRoot = Path.of(uploadRoot).toAbsolutePath().normalize();
+    }
+
+    @GetMapping("/system-health")
+    /**
+     * 功能：聚合系统健康状态。
+     * 说明：管理端健康中心用本接口展示 MySQL、Redis、AI Service、Ollama、
+     * 上传目录、Flyway 和 JVM 状态，便于答辩时说明系统可观测性和降级情况。
+     */
+    public ApiResponse<SystemHealthResponse> systemHealth() {
+        List<SystemHealthItem> items = List.of(
+                mysqlHealth(),
+                redisHealth(),
+                aiHealth(),
+                uploadHealth(),
+                flywayHealth(),
+                jvmHealth()
+        );
+        return ApiResponse.success(new SystemHealthResponse(
+                Instant.now(),
+                overallStatus(items),
+                items,
+                jvmMetrics()
+        ));
     }
 
     @GetMapping("/redis-monitor")
@@ -313,6 +345,171 @@ public class SystemMonitorController {
         }
     }
 
+    private SystemHealthItem mysqlHealth() {
+        long start = System.nanoTime();
+        try {
+            Integer value = jdbcTemplate.queryForObject("select 1", Integer.class);
+            return new SystemHealthItem(
+                    "mysql",
+                    "MySQL 数据库",
+                    value != null && value == 1 ? "UP" : "DEGRADED",
+                    "数据库连接和只读探活正常",
+                    elapsedMillis(start),
+                    Map.of("probe", value == null ? "" : value)
+            );
+        } catch (RuntimeException ex) {
+            return failedHealth("mysql", "MySQL 数据库", "数据库连接失败", start, ex);
+        }
+    }
+
+    private SystemHealthItem redisHealth() {
+        long start = System.nanoTime();
+        try (RedisConnection connection = redisTemplate.getConnectionFactory().getConnection()) {
+            String ping = connection.ping();
+            Long dbSize = connection.dbSize();
+            return new SystemHealthItem(
+                    "redis",
+                    "Redis 缓存",
+                    "PONG".equalsIgnoreCase(ping) ? "UP" : "DEGRADED",
+                    "Redis 可连接，缓存和抢课库存可用",
+                    elapsedMillis(start),
+                    Map.of(
+                            "ping", ping == null ? "" : ping,
+                            "dbSize", dbSize == null ? 0 : dbSize
+                    )
+            );
+        } catch (RuntimeException ex) {
+            return failedHealth("redis", "Redis 缓存", "Redis 不可用，业务会降级到数据库兜底", start, ex);
+        }
+    }
+
+    private SystemHealthItem aiHealth() {
+        AiServiceStatusResponse status = aiRemoteClient.status();
+        String health = status.aiServiceOnline()
+                ? (status.ollamaReachable() ? "UP" : "DEGRADED")
+                : "DEGRADED";
+        String detail = status.aiServiceOnline()
+                ? status.currentMode()
+                : "AI Service 不可达，主系统使用本地兜底";
+        return new SystemHealthItem(
+                "ai",
+                "AI Service / Ollama",
+                health,
+                detail,
+                status.lastLatencyMs(),
+                Map.of(
+                        "aiServiceReachable", status.aiServiceOnline(),
+                        "ollamaEnabled", status.ollamaEnabled(),
+                        "ollamaReachable", status.ollamaReachable(),
+                        "chatModel", status.chatModel(),
+                        "sqlModel", status.sqlModel(),
+                        "lastError", status.lastError() == null ? "" : status.lastError()
+                )
+        );
+    }
+
+    private SystemHealthItem uploadHealth() {
+        long start = System.nanoTime();
+        try {
+            Files.createDirectories(uploadRoot);
+            boolean writable = Files.isDirectory(uploadRoot) && Files.isWritable(uploadRoot);
+            return new SystemHealthItem(
+                    "upload",
+                    "上传目录",
+                    writable ? "UP" : "DEGRADED",
+                    writable ? "上传目录存在且可写" : "上传目录不可写，请检查权限",
+                    elapsedMillis(start),
+                    Map.of(
+                            "path", uploadRoot.toString(),
+                            "freeSpaceBytes", uploadRoot.toFile().getFreeSpace()
+                    )
+            );
+        } catch (IOException | RuntimeException ex) {
+            return failedHealth("upload", "上传目录", "上传目录检查失败", start, ex);
+        }
+    }
+
+    private SystemHealthItem flywayHealth() {
+        long start = System.nanoTime();
+        try {
+            Map<String, Object> latest = jdbcTemplate.queryForMap("""
+                    select version, description, success, installed_on
+                    from flyway_schema_history
+                    order by installed_rank desc
+                    limit 1
+                    """);
+            boolean success = Boolean.parseBoolean(String.valueOf(latest.getOrDefault("success", "false")));
+            return new SystemHealthItem(
+                    "flyway",
+                    "Flyway 迁移",
+                    success ? "UP" : "DEGRADED",
+                    "最新迁移：" + latest.getOrDefault("version", "") + " " + latest.getOrDefault("description", ""),
+                    elapsedMillis(start),
+                    latest
+            );
+        } catch (RuntimeException ex) {
+            return failedHealth("flyway", "Flyway 迁移", "无法读取迁移历史", start, ex);
+        }
+    }
+
+    private SystemHealthItem jvmHealth() {
+        Runtime runtime = Runtime.getRuntime();
+        long max = runtime.maxMemory();
+        long used = runtime.totalMemory() - runtime.freeMemory();
+        long usagePercent = max <= 0 ? 0 : Math.round(used * 100.0 / max);
+        return new SystemHealthItem(
+                "jvm",
+                "JVM 运行时",
+                usagePercent < 85 ? "UP" : "DEGRADED",
+                "内存占用 " + usagePercent + "%，线程数 " + Thread.activeCount(),
+                0,
+                Map.of(
+                        "usedMemoryBytes", used,
+                        "maxMemoryBytes", max,
+                        "availableProcessors", runtime.availableProcessors(),
+                        "activeThreads", Thread.activeCount()
+                )
+        );
+    }
+
+    private List<SystemMetricItem> jvmMetrics() {
+        Runtime runtime = Runtime.getRuntime();
+        long used = runtime.totalMemory() - runtime.freeMemory();
+        long max = runtime.maxMemory();
+        long free = uploadRoot.toFile().getFreeSpace();
+        return List.of(
+                new SystemMetricItem("jvm.usedMemory", "JVM 已用内存", used / 1024 / 1024, "MB"),
+                new SystemMetricItem("jvm.maxMemory", "JVM 最大内存", max / 1024 / 1024, "MB"),
+                new SystemMetricItem("jvm.threads", "活动线程", Thread.activeCount(), "个"),
+                new SystemMetricItem("disk.uploadFree", "上传盘剩余", free / 1024 / 1024, "MB")
+        );
+    }
+
+    private SystemHealthItem failedHealth(String key, String name, String detail, long start, Exception ex) {
+        return new SystemHealthItem(
+                key,
+                name,
+                "DOWN",
+                detail,
+                elapsedMillis(start),
+                Map.of("error", ex.getClass().getSimpleName() + ": " + ex.getMessage())
+        );
+    }
+
+    private String overallStatus(List<SystemHealthItem> items) {
+        if (items.stream().anyMatch(item -> item.status().equals("DOWN"))) {
+            return "DOWN";
+        }
+        if (items.stream().anyMatch(item -> item.status().equals("DEGRADED"))) {
+            return "DEGRADED";
+        }
+        return "UP";
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return java.time.Duration.ofNanos(System.nanoTime() - startNanos).toMillis();
+    }
+
     private Integer queryInteger(String sql, Object... args) {
         List<Integer> values = jdbcTemplate.queryForList(sql, Integer.class, args);
         return values.isEmpty() ? null : values.get(0);
@@ -431,6 +628,32 @@ public class SystemMonitorController {
             String smartMode,
             int concurrency,
             boolean redisReachable
+    ) {
+    }
+
+    public record SystemHealthResponse(
+            Instant checkedAt,
+            String overallStatus,
+            List<SystemHealthItem> items,
+            List<SystemMetricItem> metrics
+    ) {
+    }
+
+    public record SystemHealthItem(
+            String key,
+            String name,
+            String status,
+            String detail,
+            long latencyMs,
+            Map<String, Object> metadata
+    ) {
+    }
+
+    public record SystemMetricItem(
+            String key,
+            String label,
+            long value,
+            String unit
     ) {
     }
 }

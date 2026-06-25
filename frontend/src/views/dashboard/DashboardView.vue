@@ -18,6 +18,7 @@ import {
 import { fetchDashboardOverviewApi, type DashboardOverview } from '@/api/dashboard'
 import { homeNoticesApi, markNotificationReadApi, myNotificationsApi, type Notice, type Notification } from '@/api/notice'
 import { personalScheduleApi, type ScheduleEntry } from '@/api/schedule'
+import { NexusMetricCard } from '@/components/nexus'
 import { useAuthStore } from '@/stores/auth'
 import { useMenuStore } from '@/stores/menu'
 import type { MenuItem } from '@/api/menu'
@@ -160,10 +161,14 @@ function priorityScore(path: string, priority: string[]) {
       </article>
 
       <section class="summary-strip">
-        <article v-for="item in roleStatCards" :key="item.label">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}<small>{{ item.suffix }}</small></strong>
-        </article>
+        <NexusMetricCard
+          v-for="(item, index) in roleStatCards"
+          :key="item.label"
+          :label="item.label"
+          :value="item.value"
+          :suffix="item.suffix"
+          :tone="index === 1 ? 'warning' : index === 2 ? 'info' : index === 3 ? 'success' : 'primary'"
+        />
       </section>
 
       <article class="portal-card wide">

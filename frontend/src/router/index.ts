@@ -14,6 +14,9 @@ const routes: RouteRecordRaw[] = [
     redirect: '/dashboard',
     children: [
       { path: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
+      { path: '403', component: () => import('@/views/error/Error403View.vue') },
+      { path: '404', component: () => import('@/views/error/Error404View.vue') },
+      { path: '500', component: () => import('@/views/error/Error500View.vue') },
       { path: 'ai/assistant', component: () => import('@/views/ai/AiAssistantView.vue') },
       { path: 'ai/chat', component: () => import('@/views/ai/AiChatView.vue') },
       { path: 'ai/academic-profile', component: () => import('@/views/ai/AcademicProfileView.vue') },
@@ -56,12 +59,17 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/files', component: () => import('@/views/admin/FileAdminView.vue') },
       { path: 'admin/audit-logs', component: () => import('@/views/admin/AuditLogView.vue') },
       { path: 'admin/registration-applications', component: () => import('@/views/admin/RegistrationApplicationAdminView.vue') },
+      { path: 'admin/system-health', component: () => import('@/views/admin/SystemHealthView.vue') },
       { path: 'admin/redis-monitor', component: () => import('@/views/admin/RedisMonitorView.vue') },
       { path: 'admin/load-test-reports', component: () => import('@/views/admin/LoadTestReportsView.vue') },
       { path: 'admin/database-browser', component: () => import('@/views/admin/DatabaseBrowserView.vue') },
       { path: 'admin/ai-sql', component: () => import('@/views/admin/NaturalSqlAdminView.vue') },
       { path: 'admin/ai-logs', component: () => import('@/views/admin/AiCallLogAdminView.vue') },
     ],
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/404',
   },
 ]
 
@@ -72,6 +80,9 @@ const router = createRouter({
 
 function canAccessPath(path: string, roles: string[]) {
   if (path === '/dashboard' || path.startsWith('/ai')) {
+    return true
+  }
+  if (path === '/403' || path === '/404' || path === '/500') {
     return true
   }
   if (path.startsWith('/admin')) {
@@ -93,7 +104,7 @@ router.beforeEach((to) => {
   }
   if (!to.meta.public && auth.user) {
     if (!canAccessPath(to.path, auth.user.roles)) {
-      return '/dashboard'
+      return '/403'
     }
   }
 })

@@ -128,7 +128,14 @@ $env:REDIS_CLUSTER_NODES="192.168.1.10:7000,192.168.1.10:7001,192.168.1.10:7002"
 访问：
 
 ```text
-http://localhost:8090/preview.html
+http://localhost:8091/preview.html
+```
+
+如需临时改端口，可以先设置 `PREVIEW_PORT`：
+
+```powershell
+$env:PREVIEW_PORT="8092"
+.\start-preview.ps1
 ```
 
 ## 压测面板
@@ -151,16 +158,32 @@ http://localhost:8090/preview.html
 
 ## 一键脚本
 
-开发机本地启动：
+开发机本地启动后端和前端：
 
 ```powershell
 .\start-project.ps1
 ```
 
-分发包启动：
+完整演示启动 Redis、AI 服务、后端和前端：
 
 ```powershell
-.\start-demo.ps1
+.\start-all.bat
 ```
 
-脚本会提示输入本机 MySQL 账号密码，不会在控制台直接输出演示账号密码。
+数据库账号密码请通过环境变量覆盖，例如 `DB_USERNAME` 和 `DB_PASSWORD`。脚本不会在控制台直接输出演示账号密码。
+
+## Release 1.0 打包
+
+生成可分发的 jar 和 zip：
+
+```powershell
+.\scripts\build-release.ps1 -Version 1.0
+```
+
+打包产物位于：
+
+```text
+release/Academic-Nexus-1.0.zip
+```
+
+压缩包内包含主系统 `academic-nexus-web.jar`、AI 服务 `academic-nexus-ai-service.jar`、`.env.example`、`start-release.ps1` 和 `start-release.bat`。部署机器需要 Java 17、MySQL 和 Redis；如需真实 Ollama 模型，把 `.env` 中的 `OLLAMA_ENABLED` 改为 `true` 并确认模型已经拉取。

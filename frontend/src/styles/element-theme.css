@@ -1,0 +1,24 @@
+:root {
+  --el-color-primary: var(--nexus-primary);
+  --el-color-primary-light-3: #5f86ba;
+  --el-color-primary-light-5: #8eabcd;
+  --el-color-primary-light-7: #bccfe2;
+  --el-color-primary-light-9: var(--nexus-primary-soft);
+  --el-color-primary-dark-2: var(--nexus-primary-strong);
+  --el-border-radius-base: var(--nexus-radius);
+  --el-text-color-primary: var(--nexus-text);
+  --el-text-color-regular: #344054;
+  --el-text-color-secondary: var(--nexus-text-muted);
+  --el-border-color: var(--nexus-border);
+  --el-fill-color-light: var(--nexus-surface-soft);
+}
+
+.el-button {
+  font-weight: 650;
+}
+
+.el-button:focus-visible,
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: var(--nexus-focus);
+}

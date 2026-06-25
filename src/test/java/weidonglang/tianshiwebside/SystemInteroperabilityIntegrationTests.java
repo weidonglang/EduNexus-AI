@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import weidonglang.tianshiwebside.academic.AcademicAdminController;
 import weidonglang.tianshiwebside.academic.AcademicQueryController;
+import weidonglang.tianshiwebside.admin.SystemMonitorController;
 import weidonglang.tianshiwebside.audit.AuditLogController;
 import weidonglang.tianshiwebside.common.api.PageResponse;
 import weidonglang.tianshiwebside.course.grab.CourseGrabCommand;
@@ -87,6 +88,8 @@ class SystemInteroperabilityIntegrationTests {
     private AuditLogController auditLogController;
     @Autowired
     private LocalCourseGrabService courseGrabService;
+    @Autowired
+    private SystemMonitorController systemMonitorController;
 
     @BeforeEach
     void setUp() {
@@ -275,11 +278,11 @@ class SystemInteroperabilityIntegrationTests {
                 new StudentStatusChangeController.SubmitStatusChangeRequest(StatusChangeType.OTHER, "上传材料")
         ).data();
 
-        MockMultipartFile file = new MockMultipartFile("file", "proof.txt", "text/plain", "证明材料".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockMultipartFile file = new MockMultipartFile("file", "proof.pdf", "application/pdf", "证明材料".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         attachmentController.upload(auth(username, "ROLE_STUDENT"), application.id(), file);
         List<StatusChangeAttachmentMapper.AdminAttachmentRow> adminFiles = adminFileController.files().data();
         Long attachmentId = adminFiles.stream()
-                .filter(row -> row.applicationId().equals(application.id()) && row.originalFilename().equals("proof.txt"))
+                .filter(row -> row.applicationId().equals(application.id()) && row.originalFilename().equals("proof.pdf"))
                 .findFirst()
                 .orElseThrow()
                 .id();
@@ -299,8 +302,21 @@ class SystemInteroperabilityIntegrationTests {
         rolePermissionController.updateRoleMenus(adminAuth(), studentRoleId,
                 new RolePermissionController.UpdateRoleMenusRequest(List.of("dashboard")));
 
-        assertThat(auditLogController.logs("UPDATE_ROLE_MENUS", 1, 20).data().records())
-                .anyMatch(row -> row.action().equals("UPDATE_ROLE_MENUS"));
+        assertThat(auditLogController.logs("UPDATE_ROLE_MENUS", null, null, 1, 20).data().records())
+                .anyMatch(row -> row.action().equals("UPDATE_ROLE_MENUS")
+                        && row.module().equals("PERMISSION")
+                        && row.riskLevel().equals("HIGH"));
+    }
+
+    @Test
+    void systemHealthReportsCoreRuntimeComponents() {
+        var health = systemMonitorController.systemHealth().data();
+
+        assertThat(health.overallStatus()).isIn("UP", "DEGRADED", "DOWN");
+        assertThat(health.items()).extracting(SystemMonitorController.SystemHealthItem::key)
+                .contains("mysql", "redis", "ai", "upload", "flyway", "jvm");
+        assertThat(health.metrics()).extracting(SystemMonitorController.SystemMetricItem::key)
+                .contains("jvm.usedMemory", "jvm.maxMemory", "jvm.threads", "disk.uploadFree");
     }
 
     private void seedSelection(String studentUsername, Long offeringId) {

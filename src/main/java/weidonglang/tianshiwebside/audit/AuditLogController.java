@@ -30,17 +30,21 @@ public class AuditLogController {
     @GetMapping
     public ApiResponse<PageResponse<AuditLogMapper.AuditLogRow>> logs(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String riskLevel,
+            @RequestParam(required = false) String module,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 100);
         String normalizedKeyword = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim() + "%";
+        String normalizedRiskLevel = riskLevel == null || riskLevel.isBlank() ? null : riskLevel.trim().toUpperCase();
+        String normalizedModule = module == null || module.isBlank() ? null : module.trim().toUpperCase();
         return ApiResponse.success(new PageResponse<>(
-                auditLogMapper.findLogs(normalizedKeyword, safeSize, (safePage - 1) * safeSize),
+                auditLogMapper.findLogs(normalizedKeyword, normalizedRiskLevel, normalizedModule, safeSize, (safePage - 1) * safeSize),
                 safePage,
                 safeSize,
-                auditLogMapper.countLogs(normalizedKeyword)
+                auditLogMapper.countLogs(normalizedKeyword, normalizedRiskLevel, normalizedModule)
         ));
     }
 }

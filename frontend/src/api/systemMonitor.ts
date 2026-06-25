@@ -53,6 +53,35 @@ export interface LoadTestReportRow {
   redisReachable: boolean
 }
 
+export interface SystemHealthItem {
+  key: string
+  name: string
+  status: 'UP' | 'DEGRADED' | 'DOWN'
+  detail: string
+  latencyMs: number
+  metadata: Record<string, unknown>
+}
+
+export interface SystemMetricItem {
+  key: string
+  label: string
+  value: number
+  unit: string
+}
+
+export interface SystemHealthResponse {
+  checkedAt: string
+  overallStatus: 'UP' | 'DEGRADED' | 'DOWN'
+  items: SystemHealthItem[]
+  metrics: SystemMetricItem[]
+}
+
+// 功能：查询系统健康中心聚合状态。
+// 说明：管理端健康中心展示 MySQL、Redis、AI Service、上传目录、Flyway 和 JVM 状态。
+export function systemHealthApi() {
+  return http.get<never, ApiResponse<SystemHealthResponse>>('/admin/system-health')
+}
+
 // 功能：查询 Redis 运行状态和缓存 key。
 // 说明：管理端 Redis 监控页使用该接口展示 PING、key 数量、TTL、库存 key 和是否超卖。
 export function redisMonitorApi(params?: { pattern?: string; limit?: number }) {

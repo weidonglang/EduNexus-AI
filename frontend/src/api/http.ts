@@ -32,16 +32,19 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-// 功能：统一处理后端响应和登录失效。
-// 说明：后端返回 401/403 时清空本地会话并跳转登录页，避免用户继续停留在无权限页面。
+// 功能：统一处理后端响应、登录失效和无权限状态。
+// 说明：401 清空会话并回登录页；403 保留登录态并进入无权限页，方便用户理解权限边界。
 http.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const status = error.response?.status
-    if ((status === 401 || status === 403) && window.location.pathname !== '/login') {
+    if (status === 401 && window.location.pathname !== '/login') {
       const auth = useAuthStore()
       auth.clearSession()
       window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
+    }
+    if (status === 403 && window.location.pathname !== '/403') {
+      window.location.assign('/403')
     }
     return Promise.reject(error)
   },

@@ -31,10 +31,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex, HttpServletRequest request) {
         HttpStatus status = switch (ex.errorCode()) {
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
-            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case UNAUTHORIZED, AUTH_UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN, AUTH_FORBIDDEN -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case CONFLICT -> HttpStatus.CONFLICT;
+            case CONFLICT,
+                 COURSE_CAPACITY_FULL,
+                 COURSE_TIME_CONFLICT,
+                 COURSE_DUPLICATE_SELECTION,
+                 COURSE_WINDOW_CLOSED,
+                 APPLICATION_INVALID_STATUS,
+                 GRADE_LOCKED,
+                 SQL_REJECTED,
+                 FILE_TYPE_NOT_ALLOWED,
+                 BATCH_PARTIAL_FAILURE -> HttpStatus.CONFLICT;
+            case AI_SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
         return ResponseEntity.status(status)
