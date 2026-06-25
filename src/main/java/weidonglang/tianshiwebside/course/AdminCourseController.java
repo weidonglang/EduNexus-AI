@@ -22,6 +22,7 @@ import weidonglang.tianshiwebside.course.mapper.AdminCourseRow;
 
 import java.time.Instant;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -183,6 +184,58 @@ public class AdminCourseController {
         ));
     }
 
+    @GetMapping("/course-offerings/options")
+    public ApiResponse<CourseOfferingOptionsResponse> offeringOptions() {
+        return ApiResponse.success(new CourseOfferingOptionsResponse(
+                adminCourseMapper.findCourses(),
+                adminCourseMapper.findTeacherOptions(),
+                adminCourseMapper.findClassroomOptions(),
+                adminCourseMapper.findTermOptions()
+        ));
+    }
+
+    @GetMapping("/course-offerings/{offeringId}")
+    public ApiResponse<AdminCourseOfferingRow> offering(@PathVariable Long offeringId) {
+        AdminCourseOfferingRow row = adminCourseMapper.findOfferingById(offeringId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
+        }
+        return ApiResponse.success(row);
+    }
+
+    @GetMapping("/course-offerings/{offeringId}/students")
+    public ApiResponse<List<AdminCourseMapper.OfferingStudentRow>> offeringStudents(@PathVariable Long offeringId) {
+        if (adminCourseMapper.findOfferingById(offeringId) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
+        }
+        return ApiResponse.success(adminCourseMapper.findOfferingStudents(offeringId));
+    }
+
+    @PostMapping("/course-offerings/{offeringId}/publish")
+    @PreAuthorize("hasAuthority('COURSE_WRITE')")
+    public ApiResponse<AdminCourseOfferingRow> publishOffering(Authentication authentication, @PathVariable Long offeringId) {
+        AdminCourseOfferingRow current = requireOffering(offeringId);
+        Instant now = Instant.now();
+        Instant endAt = current.selectionEndAt().isAfter(now) ? current.selectionEndAt() : now.plus(7, ChronoUnit.DAYS);
+        adminCourseMapper.updateOfferingSelectionWindow(offeringId, now.minus(1, ChronoUnit.MINUTES), endAt);
+        evictOfferingStock(offeringId);
+        evictCourseCaches();
+        auditLogService.record(authentication.getName(), "PUBLISH_COURSE_OFFERING", "COURSE_OFFERING", offeringId, current.courseName(), null);
+        return ApiResponse.success(adminCourseMapper.findOfferingById(offeringId));
+    }
+
+    @PostMapping("/course-offerings/{offeringId}/close")
+    @PreAuthorize("hasAuthority('COURSE_WRITE')")
+    public ApiResponse<AdminCourseOfferingRow> closeOffering(Authentication authentication, @PathVariable Long offeringId) {
+        AdminCourseOfferingRow current = requireOffering(offeringId);
+        Instant now = Instant.now();
+        adminCourseMapper.updateOfferingSelectionWindow(offeringId, current.selectionStartAt(), now.minus(1, ChronoUnit.MINUTES));
+        evictOfferingStock(offeringId);
+        evictCourseCaches();
+        auditLogService.record(authentication.getName(), "CLOSE_COURSE_OFFERING", "COURSE_OFFERING", offeringId, current.courseName(), null);
+        return ApiResponse.success(adminCourseMapper.findOfferingById(offeringId));
+    }
+
     @PostMapping("/course-offerings")
     @PreAuthorize("hasAuthority('COURSE_WRITE')")
     /**
@@ -191,7 +244,7 @@ public class AdminCourseController {
      * 学生端可选课程列表就是基于这些教学班生成的。
      */
     public ApiResponse<AdminCourseOfferingRow> createOffering(Authentication authentication, @Valid @RequestBody CourseOfferingRequest request) {
-        validateOfferingRequest(request, 0);
+        validateOfferingRequest(request, 0, null);
         AdminCourseMapper.CourseOfferingCommand command = toCommand(null, request);
         adminCourseMapper.insertOffering(command);
         evictCourseCaches();
@@ -216,7 +269,7 @@ public class AdminCourseController {
             throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
         }
         long selectedCount = adminCourseMapper.countSelections(offeringId);
-        validateOfferingRequest(request, selectedCount);
+        validateOfferingRequest(request, selectedCount, offeringId);
         int updated = adminCourseMapper.updateOffering(toCommand(offeringId, request));
         if (updated == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
@@ -229,11 +282,12 @@ public class AdminCourseController {
     }
 
     @DeleteMapping("/course-offerings/{offeringId}")
+    @PreAuthorize("hasAuthority('COURSE_WRITE')")
     /**
      * 功能：删除教学班。
      * 说明：已有学生选课或被其他业务引用的教学班不能删除，防止影响课表、成绩和考试安排。
      */
-    public ApiResponse<Void> deleteOffering(@PathVariable Long offeringId) {
+    public ApiResponse<Void> deleteOffering(Authentication authentication, @PathVariable Long offeringId) {
         AdminCourseOfferingRow current = adminCourseMapper.findOfferingById(offeringId);
         if (current == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
@@ -248,18 +302,44 @@ public class AdminCourseController {
         }
         evictOfferingStock(offeringId);
         evictCourseCaches();
+        auditLogService.record(authentication.getName(), "DELETE_COURSE_OFFERING", "COURSE_OFFERING", offeringId, current.courseName(), null);
         return ApiResponse.success();
     }
 
-    private void validateOfferingRequest(CourseOfferingRequest request, long selectedCount) {
+    private AdminCourseOfferingRow requireOffering(Long offeringId) {
+        AdminCourseOfferingRow current = adminCourseMapper.findOfferingById(offeringId);
+        if (current == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "教学班不存在");
+        }
+        return current;
+    }
+
+    private void validateOfferingRequest(CourseOfferingRequest request, long selectedCount, Long exceptOfferingId) {
         if (adminCourseMapper.findCourseById(request.courseId()) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+        }
+        String teacherName = request.teacherName().trim();
+        String term = request.term().trim();
+        String scheduleText = request.scheduleText().trim();
+        String classroom = request.classroom().trim();
+        boolean teacherRoleInitialized = adminCourseMapper.countTeacherRoleDefinitions() > 0;
+        boolean teacherAssignable = teacherRoleInitialized
+                ? adminCourseMapper.countActiveTeacherByName(teacherName) > 0
+                : adminCourseMapper.countActiveUserByDisplayName(teacherName) > 0;
+        if (!teacherAssignable) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "授课教师不存在或未启用");
         }
         if (!request.selectionEndAt().isAfter(request.selectionStartAt())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "选课结束时间必须晚于开始时间");
         }
         if (request.capacity() < selectedCount) {
             throw new BusinessException(ErrorCode.CONFLICT, "容量不能小于已选人数");
+        }
+        if (adminCourseMapper.countTeacherScheduleConflicts(teacherName, term, scheduleText, exceptOfferingId) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "同一教师同一时间不能被安排两门课");
+        }
+        if (adminCourseMapper.countClassroomScheduleConflicts(classroom, term, scheduleText, exceptOfferingId) > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "同一教室同一时间不能安排两门课");
         }
     }
 
@@ -314,6 +394,14 @@ public class AdminCourseController {
             @NotBlank String classroom,
             @NotNull Instant selectionStartAt,
             @NotNull Instant selectionEndAt
+    ) {
+    }
+
+    public record CourseOfferingOptionsResponse(
+            List<AdminCourseRow> courses,
+            List<String> teachers,
+            List<String> classrooms,
+            List<String> terms
     ) {
     }
 }

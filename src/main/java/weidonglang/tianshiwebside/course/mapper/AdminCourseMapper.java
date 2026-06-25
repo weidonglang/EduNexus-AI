@@ -129,6 +129,58 @@ public interface AdminCourseMapper {
             """)
     AdminCourseOfferingRow findOfferingById(@Param("offeringId") Long offeringId);
 
+    @Select("""
+            select count(*)
+            from sys_user u
+            join sys_user_role ur on ur.user_id = u.id
+            join sys_role r on r.id = ur.role_id
+            where r.code = 'TEACHER'
+              and u.display_name = #{teacherName}
+              and u.status = 'ACTIVE'
+            """)
+    int countActiveTeacherByName(@Param("teacherName") String teacherName);
+
+    @Select("""
+            select count(*)
+            from sys_role
+            where code = 'TEACHER'
+            """)
+    int countTeacherRoleDefinitions();
+
+    @Select("""
+            select count(*)
+            from sys_user
+            where display_name = #{teacherName}
+              and status = 'ACTIVE'
+            """)
+    int countActiveUserByDisplayName(@Param("teacherName") String teacherName);
+
+    @Select("""
+            select count(*)
+            from course_offering
+            where teacher_name = #{teacherName}
+              and term = #{term}
+              and schedule_text = #{scheduleText}
+              and (#{exceptOfferingId} is null or id <> #{exceptOfferingId})
+            """)
+    int countTeacherScheduleConflicts(@Param("teacherName") String teacherName,
+                                      @Param("term") String term,
+                                      @Param("scheduleText") String scheduleText,
+                                      @Param("exceptOfferingId") Long exceptOfferingId);
+
+    @Select("""
+            select count(*)
+            from course_offering
+            where classroom = #{classroom}
+              and term = #{term}
+              and schedule_text = #{scheduleText}
+              and (#{exceptOfferingId} is null or id <> #{exceptOfferingId})
+            """)
+    int countClassroomScheduleConflicts(@Param("classroom") String classroom,
+                                        @Param("term") String term,
+                                        @Param("scheduleText") String scheduleText,
+                                        @Param("exceptOfferingId") Long exceptOfferingId);
+
     @Insert("""
             insert into course_offering (
               course_id,
@@ -169,12 +221,70 @@ public interface AdminCourseMapper {
             """)
     int updateOffering(CourseOfferingCommand command);
 
+    @Update("""
+            update course_offering
+            set selection_start_at = #{selectionStartAt},
+                selection_end_at = #{selectionEndAt}
+            where id = #{offeringId}
+            """)
+    int updateOfferingSelectionWindow(@Param("offeringId") Long offeringId,
+                                      @Param("selectionStartAt") Instant selectionStartAt,
+                                      @Param("selectionEndAt") Instant selectionEndAt);
+
     @Select("""
             select count(*)
             from course_selection
             where offering_id = #{offeringId}
             """)
     long countSelections(@Param("offeringId") Long offeringId);
+
+    @Select("""
+            select
+              s.id as student_id,
+              s.student_no as student_no,
+              u.display_name as student_name,
+              s.class_name as class_name,
+              s.major as major,
+              cs.selected_at as selected_at,
+              coalesce(ag.grade_status, '未录入') as grade_status
+            from course_selection cs
+            join student s on s.id = cs.student_id
+            join sys_user u on u.id = s.user_id
+            join course_offering co on co.id = cs.offering_id
+            join course c on c.id = co.course_id
+            left join academic_grade ag
+              on ag.student_id = s.id
+             and ag.course_id = c.id
+             and ag.term = co.term
+            where co.id = #{offeringId}
+            order by s.student_no asc
+            """)
+    List<OfferingStudentRow> findOfferingStudents(@Param("offeringId") Long offeringId);
+
+    @Select("""
+            select u.display_name
+            from sys_user u
+            join sys_user_role ur on ur.user_id = u.id
+            join sys_role r on r.id = ur.role_id
+            where r.code = 'TEACHER'
+              and u.status = 'ACTIVE'
+            order by u.display_name asc
+            """)
+    List<String> findTeacherOptions();
+
+    @Select("""
+            select room
+            from classroom
+            order by room asc
+            """)
+    List<String> findClassroomOptions();
+
+    @Select("""
+            select distinct term
+            from course_offering
+            order by term desc
+            """)
+    List<String> findTermOptions();
 
     @Delete("""
             delete from course_offering
@@ -309,5 +419,9 @@ public interface AdminCourseMapper {
         public Instant getSelectionEndAt() {
             return selectionEndAt;
         }
+    }
+
+    record OfferingStudentRow(Long studentId, String studentNo, String studentName, String className,
+                              String major, Instant selectedAt, String gradeStatus) {
     }
 }

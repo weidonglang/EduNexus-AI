@@ -69,6 +69,17 @@ public interface CourseSelectionWriteMapper {
             """)
     long countStudentOfferingSelection(@Param("studentId") Long studentId, @Param("offeringId") Long offeringId);
 
+    @Select("""
+            select count(*)
+            from course_selection cs
+            join course_offering selected_offering on selected_offering.id = cs.offering_id
+            join course_offering target_offering on target_offering.id = #{offeringId}
+            where cs.student_id = #{studentId}
+              and selected_offering.term = target_offering.term
+              and selected_offering.schedule_text = target_offering.schedule_text
+            """)
+    long countStudentScheduleConflicts(@Param("studentId") Long studentId, @Param("offeringId") Long offeringId);
+
     /**
      * 功能：统计教学班当前已选人数。
      * 说明：用于计算剩余名额、预热 Redis 库存，以及 Redis 不可用时数据库兜底判断是否满员。

@@ -104,6 +104,7 @@ const pagedGrades = computed(() => grades.value.slice((gradePage.value - 1) * gr
 const pagedSelectedCourses = computed(() => selectedCourses.value.slice((selectionPage.value - 1) * selectionSize.value, selectionPage.value * selectionSize.value))
 const pagedTeachingPlan = computed(() => teachingPlan.value.slice((planPage.value - 1) * planSize.value, planPage.value * planSize.value))
 const pagedStatusChanges = computed(() => statusChanges.value.slice((statusPage.value - 1) * statusSize.value, statusPage.value * statusSize.value))
+const unassignedClass = computed(() => !profile.value?.className || profile.value.className === '未分班')
 
 onMounted(loadProfile)
 
@@ -222,10 +223,18 @@ function handleStatusSizeChange() {
       </el-tab-pane>
 
       <el-tab-pane label="学籍信息" name="academic">
+        <el-alert
+          v-if="unassignedClass"
+          class="profile-alert"
+          type="warning"
+          title="你尚未被分配班级，请联系管理员。"
+          show-icon
+          :closable="false"
+        />
         <div class="info-fields three-columns">
           <div><strong>学院：</strong><span>{{ profile.college }}</span></div>
           <div><strong>专业：</strong><span>{{ profile.major }}</span></div>
-          <div><strong>班级：</strong><span>{{ profile.className }}</span></div>
+          <div><strong>班级：</strong><span>{{ unassignedClass ? '未分配' : profile.className }}</span></div>
           <div><strong>年级：</strong><span>{{ profile.grade }}</span></div>
           <div><strong>学籍状态：</strong><span>{{ profile.status }}</span></div>
           <div><strong>培养层次：</strong><span>本科</span></div>

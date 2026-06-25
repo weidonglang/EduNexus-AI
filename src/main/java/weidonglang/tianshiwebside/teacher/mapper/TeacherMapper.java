@@ -107,6 +107,30 @@ public interface TeacherMapper {
                            @Param("offeringId") Long offeringId, @Param("keyword") String keyword);
 
     @Select("""
+            select
+              s.student_no as student_no,
+              u.display_name as student_name,
+              s.class_name as class_name,
+              s.major as major,
+              cs.selected_at as selected_at,
+              coalesce(ag.grade_status, '未录入') as grade_status
+            from course_selection cs
+            join student s on s.id = cs.student_id
+            join sys_user u on u.id = s.user_id
+            join course_offering co on co.id = cs.offering_id
+            join course c on c.id = co.course_id
+            left join academic_grade ag
+              on ag.student_id = s.id
+             and ag.course_id = c.id
+             and ag.term = co.term
+            where co.id = #{offeringId}
+              and co.teacher_name = #{teacherName}
+            order by s.student_no asc
+            """)
+    List<TeacherOfferingStudentRow> findOfferingStudents(@Param("teacherName") String teacherName,
+                                                         @Param("offeringId") Long offeringId);
+
+    @Select("""
             select s.id
             from course_selection cs
             join student s on s.id = cs.student_id
@@ -157,6 +181,9 @@ public interface TeacherMapper {
             """)
     int countLockedGrade(@Param("gradeId") Long gradeId);
 
+    @Select("select score from academic_grade where id = #{gradeId}")
+    Integer findGradeScore(@Param("gradeId") Long gradeId);
+
     @Insert("""
             insert into academic_grade (student_id, course_id, term, score, grade_point, exam_type, grade_status, locked)
             values (#{studentId}, #{courseId}, #{term}, #{score}, #{gradePoint}, #{examType}, #{gradeStatus}, #{locked})
@@ -174,6 +201,18 @@ public interface TeacherMapper {
             where id = #{id}
             """)
     int updateGrade(GradeCommand command);
+
+    @Insert("""
+            insert into grade_change_log (grade_id, old_score, new_score, reason, operator, operator_role, trace_id, created_at)
+            values (#{gradeId}, #{oldScore}, #{newScore}, #{reason}, #{operator}, #{operatorRole}, #{traceId}, current_timestamp)
+            """)
+    int insertGradeChangeLog(@Param("gradeId") Long gradeId,
+                             @Param("oldScore") Integer oldScore,
+                             @Param("newScore") Integer newScore,
+                             @Param("reason") String reason,
+                             @Param("operator") String operator,
+                             @Param("operatorRole") String operatorRole,
+                             @Param("traceId") String traceId);
 
     @Select("""
             select
@@ -269,5 +308,9 @@ public interface TeacherMapper {
     record TeacherGradeEntryRow(Long gradeId, Long offeringId, String studentNo, String studentName, Long courseId,
                                 String courseCode, String courseName, String term, Integer score, BigDecimal gradePoint,
                                 String examType, String gradeStatus, Boolean locked) {
+    }
+
+    record TeacherOfferingStudentRow(String studentNo, String studentName, String className, String major,
+                                     java.time.Instant selectedAt, String gradeStatus) {
     }
 }

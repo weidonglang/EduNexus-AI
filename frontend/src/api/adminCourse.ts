@@ -25,6 +25,23 @@ export interface AdminCourseOffering {
   selectionEndAt: string
 }
 
+export interface OfferingStudent {
+  studentId: number
+  studentNo: string
+  studentName: string
+  className: string
+  major: string
+  selectedAt: string
+  gradeStatus: string
+}
+
+export interface CourseOfferingOptions {
+  courses: AdminCourse[]
+  teachers: string[]
+  classrooms: string[]
+  terms: string[]
+}
+
 export interface CourseCreatePayload {
   code: string
   name: string
@@ -63,6 +80,22 @@ export function adminCourseOfferingsApi(term?: string) {
   return http.get<never, ApiResponse<AdminCourseOffering[]>>('/admin/course-offerings', {
     params: term ? { term } : undefined,
   })
+}
+
+export function adminCourseOfferingOptionsApi() {
+  return http.get<never, ApiResponse<CourseOfferingOptions>>('/admin/course-offerings/options')
+}
+
+export function adminCourseOfferingStudentsApi(offeringId: number) {
+  return http.get<never, ApiResponse<OfferingStudent[]>>(`/admin/course-offerings/${offeringId}/students`)
+}
+
+export function publishAdminCourseOfferingApi(offeringId: number) {
+  return http.post<never, ApiResponse<AdminCourseOffering>>(`/admin/course-offerings/${offeringId}/publish`)
+}
+
+export function closeAdminCourseOfferingApi(offeringId: number) {
+  return http.post<never, ApiResponse<AdminCourseOffering>>(`/admin/course-offerings/${offeringId}/close`)
 }
 
 export function createAdminCourseOfferingApi(payload: CourseOfferingPayload) {

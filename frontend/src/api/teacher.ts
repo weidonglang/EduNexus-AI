@@ -54,6 +54,7 @@ export interface TeacherGradePayload {
   score: number
   examType: string
   gradeStatus: string
+  reason?: string
 }
 
 export function teacherGradesApi(params?: { term?: string; offeringId?: number; keyword?: string; page?: number; size?: number }) {

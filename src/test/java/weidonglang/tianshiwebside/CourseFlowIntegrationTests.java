@@ -15,6 +15,7 @@ import weidonglang.tianshiwebside.course.grab.CourseGrabCommand;
 import weidonglang.tianshiwebside.course.grab.LocalCourseGrabService;
 import weidonglang.tianshiwebside.course.mapper.AdminCourseOfferingRow;
 import weidonglang.tianshiwebside.course.mapper.AdminCourseRow;
+import weidonglang.tianshiwebside.student.AdminClassController;
 import weidonglang.tianshiwebside.teacher.TeacherController;
 
 import java.time.Instant;
@@ -25,6 +26,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 class CourseFlowIntegrationTests {
@@ -39,6 +41,9 @@ class CourseFlowIntegrationTests {
 
     @Autowired
     private LocalCourseGrabService courseGrabService;
+
+    @Autowired
+    private AdminClassController adminClassController;
 
     @BeforeEach
     void setUpSecurityContext() {
@@ -172,6 +177,74 @@ class CourseFlowIntegrationTests {
         }
     }
 
+    @Test
+    void adminCanImportAndTransferClassStudents() {
+        String suffix = uniqueSuffix();
+        var sourceClass = adminClassController.createClass(adminAuth(), new AdminClassController.ClassRequest(
+                "信息工程学院",
+                "软件工程",
+                "2026",
+                "软件工程闭环" + suffix + "A班",
+                "张老师"
+        )).data();
+        var targetClass = adminClassController.createClass(adminAuth(), new AdminClassController.ClassRequest(
+                "信息工程学院",
+                "软件工程",
+                "2026",
+                "软件工程闭环" + suffix + "B班",
+                "李老师"
+        )).data();
+
+        String studentNo = "class_student_" + suffix;
+        var batchResult = adminClassController.batchStudents(adminAuth(), sourceClass.id(), new AdminClassController.BatchStudentsRequest(
+                null,
+                List.of(new AdminClassController.StudentImportRow(
+                        studentNo,
+                        "班级闭环学生" + suffix,
+                        "信息工程学院",
+                        "软件工程",
+                        "2026",
+                        "13812345678",
+                        studentNo + "@example.com",
+                        "123456"
+                ))
+        )).data();
+
+        assertThat(batchResult.importedCount()).isEqualTo(1);
+        var sourceStudents = adminClassController.students(sourceClass.id()).data();
+        Long studentId = sourceStudents.stream()
+                .filter(row -> row.studentNo().equals(studentNo))
+                .findFirst()
+                .orElseThrow()
+                .studentId();
+
+        adminClassController.transferStudent(adminAuth(), sourceClass.id(), new AdminClassController.TransferStudentRequest(
+                studentId,
+                targetClass.id()
+        ));
+
+        assertThat(adminClassController.students(sourceClass.id()).data()).noneMatch(row -> row.studentNo().equals(studentNo));
+        assertThat(adminClassController.students(targetClass.id()).data()).anyMatch(row -> row.studentNo().equals(studentNo));
+    }
+
+    @Test
+    void studentCannotSelectOfferingsWithSameSchedule() {
+        String suffix = uniqueSuffix();
+        String studentUsername = "conflict_student_" + suffix;
+        seedStudent(studentUsername, "冲突学生" + suffix);
+        Long firstCourseId = seedCourse("TC1" + suffix, "冲突课程一" + suffix);
+        Long secondCourseId = seedCourse("TC2" + suffix, "冲突课程二" + suffix);
+        Long firstOfferingId = seedOffering(firstCourseId, "冲突老师" + suffix, "2026-2027-4", 20);
+        Long secondOfferingId = seedOffering(secondCourseId, "冲突老师" + suffix, "2026-2027-4", 20);
+
+        courseGrabService.setRedisEnabled(false);
+        courseGrabService.grab(new CourseGrabCommand(studentUsername, firstOfferingId, "first-" + suffix));
+
+        assertThatThrownBy(() -> courseGrabService.grab(new CourseGrabCommand(studentUsername, secondOfferingId, "second-" + suffix)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("课程时间冲突");
+    }
+
     private void seedUser(String username, String displayName) {
         jdbcTemplate.update("""
                 insert into sys_user (username, password_hash, display_name, status)
@@ -218,7 +291,7 @@ class CourseFlowIntegrationTests {
     }
 
     private Authentication adminAuth() {
-        return new TestingAuthenticationToken("admin_test", null, "ROLE_ADMIN", "COURSE_WRITE");
+        return new TestingAuthenticationToken("admin_test", null, "ROLE_ADMIN", "COURSE_WRITE", "USER_WRITE");
     }
 
     private String uniqueSuffix() {

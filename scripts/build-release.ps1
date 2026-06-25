@@ -22,6 +22,17 @@ function Invoke-Step {
     & $Action
 }
 
+function Invoke-NativeCommand {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments = @()
+    )
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code $LASTEXITCODE`: $FilePath $($Arguments -join ' ')"
+    }
+}
+
 function Copy-RequiredFile {
     param(
         [string]$Source,
@@ -36,8 +47,8 @@ function Copy-RequiredFile {
 Invoke-Step "Build frontend assets" {
     Push-Location $FrontendDir
     try {
-        npm ci
-        npm run build
+        Invoke-NativeCommand "npm" @("install")
+        Invoke-NativeCommand "npm" @("run", "build")
     } finally {
         Pop-Location
     }
@@ -47,9 +58,9 @@ Invoke-Step "Package main Spring Boot application" {
     Push-Location $Root
     try {
         if ($SkipTests) {
-            .\mvnw.cmd clean package -DskipTests
+            Invoke-NativeCommand ".\mvnw.cmd" @("clean", "package", "-DskipTests")
         } else {
-            .\mvnw.cmd clean package
+            Invoke-NativeCommand ".\mvnw.cmd" @("clean", "package")
         }
     } finally {
         Pop-Location
@@ -60,9 +71,9 @@ Invoke-Step "Package AI service" {
     Push-Location $Root
     try {
         if ($SkipTests) {
-            .\mvnw.cmd -f ai-service/pom.xml clean package -DskipTests
+            Invoke-NativeCommand ".\mvnw.cmd" @("-f", "ai-service/pom.xml", "clean", "package", "-DskipTests")
         } else {
-            .\mvnw.cmd -f ai-service/pom.xml clean package
+            Invoke-NativeCommand ".\mvnw.cmd" @("-f", "ai-service/pom.xml", "clean", "package")
         }
     } finally {
         Pop-Location
@@ -87,7 +98,7 @@ SERVER_PORT=8080
 AI_SERVICE_PORT=8090
 AI_SERVICE_URL=http://localhost:8090
 
-DB_URL=jdbc:mysql://localhost:3306/tianshiwebside?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+DB_URL=jdbc:mysql://localhost:3306/tianshiwebside?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
 DB_USERNAME=root
 DB_PASSWORD=123123
 

@@ -38,7 +38,7 @@ create table data_dictionary_field (
   field_name varchar(120) not null,
   display_name varchar(120) not null,
   description varchar(500),
-  sensitive boolean not null,
+  is_sensitive boolean not null,
   masking_rule varchar(80),
   export_allowed boolean not null,
   constraint uk_data_dictionary_field unique (table_name, field_name)
@@ -94,7 +94,7 @@ values
   ('operation_audit_log', '操作审计日志', 'AUDIT', '关键操作留痕', 'HIGH', false),
   ('ai_call_log', 'AI 调用日志', 'AI', 'AI 调用状态和失败信息', 'MEDIUM', true);
 
-insert into data_dictionary_field (table_name, field_name, display_name, description, sensitive, masking_rule, export_allowed)
+insert into data_dictionary_field (table_name, field_name, display_name, description, is_sensitive, masking_rule, export_allowed)
 values
   ('sys_user', 'password_hash', '密码哈希', '认证敏感字段', true, 'BLOCK', false),
   ('sys_user', 'username', '账号', '登录账号', false, null, true),

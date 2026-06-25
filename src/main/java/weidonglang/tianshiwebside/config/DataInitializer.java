@@ -168,11 +168,12 @@ public class DataInitializer {
             seedMenu("graduation-design", "\u6bd5\u8bbe\u8bba\u6587", "/graduation-design", "FileText", null, 80);
             seedMenu("thesis-grade", "\u8bba\u6587\u6210\u7ee9\u67e5\u770b", "/information/thesis-grade", "Award", "graduation-design", 81);
             seedMenu("teacher", "\u6559\u5e08\u5de5\u4f5c\u53f0", "/teacher", "Presentation", null, 55);
-            seedMenu("teacher-offerings", "\u4efb\u8bfe\u8bfe\u7a0b", "/teacher/offerings", "BookOpen", "teacher", 56);
+            seedMenu("teacher-offerings", "\u4efb\u8bfe\u8bfe\u7a0b", "/teacher/courses", "BookOpen", "teacher", 56);
             seedMenu("teacher-grades", "\u6210\u7ee9\u5f55\u5165", "/teacher/grades", "SquarePen", "teacher", 57);
             seedMenu("teacher-exams", "\u8003\u8bd5\u5b89\u6392", "/teacher/exams", "CalendarClock", "teacher", 58);
             seedMenu("teacher-evaluations", "\u8bc4\u4ef7\u7ed3\u679c", "/teacher/evaluations", "ChartColumn", "teacher", 59);
             seedMenu("admin", "\u6559\u52a1\u7ba1\u7406", "/admin", "Settings", null, 60);
+            seedMenu("admin-classes", "\u73ed\u7ea7\u4e0e\u5b66\u751f", "/admin/classes", "UsersRound", "admin", 60);
             seedMenu("admin-course-offerings", "\u8bfe\u7a0b\u4e0e\u6559\u5b66\u73ed", "/admin/course-offerings", "BookOpenCheck", "admin", 61);
             seedMenu("admin-status-changes", "\u5b66\u7c4d\u5f02\u52a8\u5ba1\u6838", "/admin/status-changes", "FileCheck2", "admin", 62);
             seedMenu("admin-role-permissions", "\u89d2\u8272\u6743\u9650\u7ba1\u7406", "/admin/role-permissions", "ShieldCheck", "admin", 63);
@@ -249,6 +250,7 @@ public class DataInitializer {
                     "ai-assistant",
                     "ai-chat",
                     "admin",
+                    "admin-classes",
                     "admin-course-offerings",
                     "admin-status-changes",
                     "admin-role-permissions",
@@ -355,6 +357,7 @@ public class DataInitializer {
             seedClassroom("\u4e1c\u533a", "C\u6559\u5b66\u697c", "C-101", 90, "\u9636\u68af\u6559\u5ba4", "5-6\u8282");
             seedRichDemoData(studentRole, openStart, openEnd);
             seedFixedTestAccounts(adminRole, teacherRole, studentRole);
+            seedAcademicClassesFromStudents();
             seedInformationCenterData(student);
         }
 
@@ -550,6 +553,13 @@ public class DataInitializer {
         private void seedMenu(String code, String title, String path, String icon, String parentCode, int sortOrder) {
             if (!menuRepository.existsByCode(code)) {
                 menuRepository.save(new SysMenu(code, title, path, icon, parentCode, sortOrder));
+            } else {
+                jdbcTemplate.update("""
+                                update sys_menu
+                                set title = ?, path = ?, icon = ?, parent_code = ?, sort_order = ?
+                                where code = ?
+                                """,
+                        title, path, icon, parentCode, sortOrder, code);
             }
         }
 
@@ -695,6 +705,41 @@ public class DataInitializer {
             if (!classroomRepository.existsByRoom(room)) {
                 classroomRepository.save(new Classroom(campus, building, room, capacity, roomType, availableSlot));
             }
+        }
+
+        private void seedAcademicClassesFromStudents() {
+            List<StudentClassSeedRow> rows = jdbcTemplate.query("""
+                            select college, major, grade, class_name
+                            from student
+                            where class_name is not null
+                              and class_name <> ''
+                              and class_name <> '未分班'
+                            group by college, major, grade, class_name
+                            order by college, major, grade, class_name
+                            """,
+                    (rs, rowNum) -> new StudentClassSeedRow(
+                            rs.getString("college"),
+                            rs.getString("major"),
+                            rs.getString("grade"),
+                            rs.getString("class_name")
+                    ));
+            for (StudentClassSeedRow row : rows) {
+                Integer existingCount = jdbcTemplate.queryForObject(
+                        "select count(*) from academic_class where class_name = ?",
+                        Integer.class,
+                        row.className()
+                );
+                if (existingCount == null || existingCount == 0) {
+                    jdbcTemplate.update("""
+                                    insert into academic_class (college, major, grade, class_name, advisor, created_at, updated_at)
+                                    values (?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                            row.college(), row.major(), row.grade(), row.className(), "张老师", Instant.now(), Instant.now());
+                }
+            }
+        }
+
+        private record StudentClassSeedRow(String college, String major, String grade, String className) {
         }
 
         private CourseOffering findOffering(String courseCode, String term) {

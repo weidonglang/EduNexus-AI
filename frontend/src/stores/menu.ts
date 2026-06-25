@@ -97,7 +97,7 @@ function fallbackMenus(roles: string[]): MenuItem[] {
   ]
   const teacher: MenuItem[] = [
     tree('teacher', '教师工作台', '/teacher', 'Presentation', [
-      item('teacher-offerings', '任课课程', '/teacher/offerings', 'BookOpen'),
+      item('teacher-offerings', '任课课程', '/teacher/courses', 'BookOpen'),
       item('teacher-grades', '成绩录入', '/teacher/grades', 'SquarePen'),
       item('teacher-exams', '考试安排', '/teacher/exams', 'CalendarClock'),
       item('teacher-evaluations', '评价结果', '/teacher/evaluations', 'ChartColumn'),
@@ -105,6 +105,7 @@ function fallbackMenus(roles: string[]): MenuItem[] {
   ]
   const admin: MenuItem[] = [
     tree('admin', '教务管理', '/admin', 'Settings', [
+      item('admin-classes', '班级与学生', '/admin/classes', 'UsersRound'),
       item('admin-course-offerings', '课程与教学班', '/admin/course-offerings', 'BookOpenCheck'),
       item('admin-status-changes', '学籍异动审核', '/admin/status-changes', 'FileCheck2'),
       item('admin-registration-applications', '报名申请审核', '/admin/registration-applications', 'FileCheck2'),

@@ -8,16 +8,19 @@ import jakarta.validation.constraints.NotNull;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
 import weidonglang.tianshiwebside.academic.mapper.AcademicAdminMapper;
 import weidonglang.tianshiwebside.academic.mapper.AcademicAdminMapper.ExamAdminRow;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.error.ErrorCode;
+import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 import weidonglang.tianshiwebside.evaluation.mapper.EvaluationSummaryRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherGradeEntryRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherOfferingRow;
+import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherOfferingStudentRow;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,10 +39,12 @@ import java.util.List;
 public class TeacherController {
     private final TeacherMapper teacherMapper;
     private final QueryCacheService queryCacheService;
+    private final AuditLogService auditLogService;
 
-    public TeacherController(TeacherMapper teacherMapper, QueryCacheService queryCacheService) {
+    public TeacherController(TeacherMapper teacherMapper, QueryCacheService queryCacheService, AuditLogService auditLogService) {
         this.teacherMapper = teacherMapper;
         this.queryCacheService = queryCacheService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -105,6 +110,19 @@ public class TeacherController {
         return ApiResponse.success(response);
     }
 
+    @GetMapping("/course-offerings/{offeringId}/students")
+    public ApiResponse<List<TeacherOfferingStudentRow>> offeringStudents(Authentication authentication, @PathVariable Long offeringId) {
+        String teacherName = teacherName(authentication);
+        ensureOwnedOffering(teacherName, offeringId);
+        return ApiResponse.success(queryCacheService.get(
+                "query:teacher:offering-students:" + teacherName + ":" + offeringId,
+                Duration.ofSeconds(15),
+                new TypeReference<List<TeacherOfferingStudentRow>>() {
+                },
+                () -> teacherMapper.findOfferingStudents(teacherName, offeringId)
+        ));
+    }
+
     /**
      * 保存教师录入或修改的成绩。
      *
@@ -124,9 +142,14 @@ public class TeacherController {
         } else if (teacherMapper.countOwnedGrade(teacherName, gradeId) == 0) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改本人任课课程的成绩");
         }
+        boolean updatingExistingGrade = gradeId != null;
+        if (updatingExistingGrade && (request.reason() == null || request.reason().isBlank())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "修改成绩必须填写原因");
+        }
         if (gradeId != null && teacherMapper.countLockedGrade(gradeId) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "成绩已锁定，不能修改");
         }
+        Integer oldScore = updatingExistingGrade ? teacherMapper.findGradeScore(gradeId) : null;
         AcademicAdminMapper.GradeCommand command = new AcademicAdminMapper.GradeCommand(
                 gradeId,
                 studentId,
@@ -140,8 +163,14 @@ public class TeacherController {
         );
         if (gradeId == null) {
             teacherMapper.insertGrade(command);
+            auditLogService.record(authentication.getName(), "CREATE_GRADE", "GRADE", command.getId(),
+                    request.studentNo().trim() + "=" + request.score(), TraceIdHolder.get());
         } else {
             teacherMapper.updateGrade(command);
+            teacherMapper.insertGradeChangeLog(gradeId, oldScore, request.score(), request.reason().trim(),
+                    authentication.getName(), "TEACHER", TraceIdHolder.get());
+            auditLogService.record(authentication.getName(), "UPDATE_GRADE", "GRADE", gradeId,
+                    request.studentNo().trim() + ": " + oldScore + " -> " + request.score(), TraceIdHolder.get());
         }
         evictTeacherAcademicCaches();
         return ApiResponse.success();
@@ -251,7 +280,7 @@ public class TeacherController {
 
     public record TeacherGradeRequest(Long gradeId, @NotNull Long offeringId, @NotBlank String studentNo,
                                       @NotBlank String term, @NotNull @Min(0) @Max(100) Integer score,
-                                      @NotBlank String examType, @NotBlank String gradeStatus) {
+                                      @NotBlank String examType, @NotBlank String gradeStatus, String reason) {
     }
 
     public record PageResponse<T>(List<T> records, int page, int size, long total) {

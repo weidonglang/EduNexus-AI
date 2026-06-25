@@ -163,12 +163,23 @@ public class LocalCourseGrabService implements CourseGrabPort {
                 selectedAt
         );
         try {
+            Long studentId = cachedStudentId(command.username());
+            if (studentId == null) {
+                rollbackStock(offering, true);
+                clearRequest(requestKey);
+                throw failure(CourseGrabFailureReason.STUDENT_NOT_FOUND, "Student profile not found");
+            }
+            ensureNoScheduleConflict(studentId, offering.offeringId());
             int inserted = selectionWriteMapper.insertSelectionByUsername(insertCommand);
             if (inserted == 0) {
                 rollbackStock(offering, true);
                 clearRequest(requestKey);
                 throw failure(CourseGrabFailureReason.STUDENT_NOT_FOUND, "Student profile not found");
             }
+        } catch (BusinessException ex) {
+            rollbackStock(offering, true);
+            clearRequest(requestKey);
+            throw ex;
         } catch (DataIntegrityViolationException ex) {
             rollbackStock(offering, true);
             throw failure(CourseGrabFailureReason.ALREADY_SELECTED, "Course already selected");
@@ -194,6 +205,8 @@ public class LocalCourseGrabService implements CourseGrabPort {
         if (studentId == null) {
             throw failure(CourseGrabFailureReason.STUDENT_NOT_FOUND, "Student profile not found");
         }
+
+        ensureNoScheduleConflict(studentId, offering.offeringId());
 
         if (selectionWriteMapper.countStudentOfferingSelection(studentId, offering.offeringId()) > 0) {
             throw failure(CourseGrabFailureReason.ALREADY_SELECTED, "Course already selected");
@@ -230,6 +243,12 @@ public class LocalCourseGrabService implements CourseGrabPort {
         CourseGrabResult result = toResult(insertCommand.getSelectionId(), offering, selectedAt, "SUCCESS", null, "Course selected");
         cacheRequestResult(requestKey, result);
         return result;
+    }
+
+    private void ensureNoScheduleConflict(Long studentId, Long offeringId) {
+        if (selectionWriteMapper.countStudentScheduleConflicts(studentId, offeringId) > 0) {
+            throw new BusinessException(ErrorCode.COURSE_TIME_CONFLICT, "课程时间冲突");
+        }
     }
 
     /**

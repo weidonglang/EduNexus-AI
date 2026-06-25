@@ -43,7 +43,7 @@ public class DataDictionaryController {
     @GetMapping("/tables/{tableName}/fields")
     public ApiResponse<List<DictionaryFieldRow>> fields(@PathVariable String tableName) {
         return ApiResponse.success(jdbcTemplate.query("""
-                        select table_name, field_name, display_name, description, sensitive, masking_rule, export_allowed
+                        select table_name, field_name, display_name, description, is_sensitive, masking_rule, export_allowed
                         from data_dictionary_field
                         where table_name = ?
                         order by field_name asc
@@ -53,7 +53,7 @@ public class DataDictionaryController {
                         rs.getString("field_name"),
                         rs.getString("display_name"),
                         rs.getString("description"),
-                        rs.getBoolean("sensitive"),
+                        rs.getBoolean("is_sensitive"),
                         rs.getString("masking_rule"),
                         rs.getBoolean("export_allowed")
                 ),

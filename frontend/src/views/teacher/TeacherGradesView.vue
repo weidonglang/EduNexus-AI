@@ -26,7 +26,7 @@ const page = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
 
-const editCache = reactive<Record<string, { score?: number; examType: string; gradeStatus: string }>>({})
+const editCache = reactive<Record<string, { score?: number; examType: string; gradeStatus: string; reason: string }>>({})
 
 const enteredCount = computed(() => rows.value.filter((row) => row.score !== null && row.score !== undefined).length)
 
@@ -64,6 +64,7 @@ function syncEditCache() {
       score: row.score ?? undefined,
       examType: row.examType || '正常考试',
       gradeStatus: row.gradeStatus === '未录入' ? '已录入' : row.gradeStatus || '已录入',
+      reason: '',
     }
   })
 }
@@ -102,6 +103,7 @@ async function saveRow(row: TeacherGradeEntry) {
       score: cache.score,
       examType: cache.examType,
       gradeStatus: cache.gradeStatus,
+      reason: cache.reason || undefined,
     })
     ElMessage.success('成绩已保存')
     await loadData()
@@ -187,6 +189,15 @@ function resolveErrorMessage(error: unknown, fallback: string) {
             <el-option label="待发布" value="待发布" />
             <el-option label="已发布" value="已发布" />
           </el-select>
+        </template>
+      </el-table-column>
+      <el-table-column label="修改原因" min-width="160">
+        <template #default="{ row }">
+          <el-input
+            v-model="editCache[rowKey(row)].reason"
+            :disabled="row.locked || !row.gradeId"
+            placeholder="修改已有成绩时必填"
+          />
         </template>
       </el-table-column>
       <el-table-column label="锁定" width="80">

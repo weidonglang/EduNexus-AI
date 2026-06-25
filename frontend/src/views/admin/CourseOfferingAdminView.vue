@@ -7,16 +7,21 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   adminCourseOfferingsApi,
+  adminCourseOfferingOptionsApi,
+  adminCourseOfferingStudentsApi,
   adminCoursesApi,
+  closeAdminCourseOfferingApi,
   createAdminCourseApi,
   createAdminCourseOfferingApi,
   deleteAdminCourseApi,
   deleteAdminCourseOfferingApi,
+  publishAdminCourseOfferingApi,
   updateAdminCourseApi,
   updateAdminCourseOfferingApi,
   type AdminCourse,
   type AdminCourseOffering,
   type CourseOfferingPayload,
+  type OfferingStudent,
 } from '@/api/adminCourse'
 
 const DEFAULT_TERM = '2025-2026-2'
@@ -25,12 +30,17 @@ const loading = ref(false)
 const saving = ref(false)
 const courseDialogVisible = ref(false)
 const offeringDialogVisible = ref(false)
+const studentsDialogVisible = ref(false)
 const editingCourseId = ref<number | null>(null)
 const editingOfferingId = ref<number | null>(null)
 const termFilter = ref(DEFAULT_TERM)
 const keywordFilter = ref('')
 const courses = ref<AdminCourse[]>([])
 const offerings = ref<AdminCourseOffering[]>([])
+const teachers = ref<string[]>([])
+const classrooms = ref<string[]>([])
+const offeringStudents = ref<OfferingStudent[]>([])
+const currentOfferingTitle = ref('')
 const coursePage = ref(1)
 const coursePageSize = ref(8)
 const offeringPage = ref(1)
@@ -72,6 +82,9 @@ async function loadData() {
     ])
     courses.value = courseResponse.data
     offerings.value = offeringResponse.data
+    const optionsResponse = await adminCourseOfferingOptionsApi()
+    teachers.value = optionsResponse.data.teachers
+    classrooms.value = optionsResponse.data.classrooms
     coursePage.value = 1
     offeringPage.value = 1
   } finally {
@@ -252,6 +265,32 @@ async function removeOffering(row: AdminCourseOffering) {
   }
 }
 
+async function publishOffering(row: AdminCourseOffering) {
+  try {
+    await publishAdminCourseOfferingApi(row.offeringId)
+    ElMessage.success('教学班已发布到选课')
+    await loadData()
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '发布教学班失败'))
+  }
+}
+
+async function closeOffering(row: AdminCourseOffering) {
+  try {
+    await closeAdminCourseOfferingApi(row.offeringId)
+    ElMessage.success('教学班已关闭选课')
+    await loadData()
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '关闭教学班失败'))
+  }
+}
+
+async function openOfferingStudents(row: AdminCourseOffering) {
+  currentOfferingTitle.value = `${row.courseCode} ${row.courseName}`
+  offeringStudents.value = (await adminCourseOfferingStudentsApi(row.offeringId)).data
+  studentsDialogVisible.value = true
+}
+
 function buildOfferingPayload(): CourseOfferingPayload | null {
   if (!offeringForm.courseId) {
     ElMessage.warning('请选择课程')
@@ -288,6 +327,11 @@ function formatDateTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function isOfferingOpen(row: AdminCourseOffering) {
+  const now = Date.now()
+  return new Date(row.selectionStartAt).getTime() <= now && now <= new Date(row.selectionEndAt).getTime()
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -384,8 +428,16 @@ function resolveErrorMessage(error: unknown, fallback: string) {
             <span class="muted-range">{{ formatDateTime(row.selectionStartAt) }} - {{ formatDateTime(row.selectionEndAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="138" fixed="right">
+        <el-table-column label="状态" width="90">
           <template #default="{ row }">
+            <el-tag :type="isOfferingOpen(row) ? 'success' : 'info'">{{ isOfferingOpen(row) ? '开放' : '关闭' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="245" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link @click="openOfferingStudents(row)">学生</el-button>
+            <el-button v-if="!isOfferingOpen(row)" type="success" link @click="publishOffering(row)">发布</el-button>
+            <el-button v-else type="warning" link @click="closeOffering(row)">关闭</el-button>
             <el-button type="primary" link @click="openEditOffering(row)">编辑</el-button>
             <el-button type="danger" link :disabled="row.selectedCount > 0" @click="removeOffering(row)">删除</el-button>
           </template>
@@ -441,7 +493,9 @@ function resolveErrorMessage(error: unknown, fallback: string) {
         </el-select>
       </el-form-item>
       <el-form-item label="教师">
-        <el-input v-model="offeringForm.teacherName" placeholder="请输入教师姓名" />
+        <el-select v-model="offeringForm.teacherName" class="full-field" filterable allow-create default-first-option placeholder="请选择教师">
+          <el-option v-for="teacher in teachers" :key="teacher" :label="teacher" :value="teacher" />
+        </el-select>
       </el-form-item>
       <el-form-item label="学期">
         <el-input v-model="offeringForm.term" placeholder="例如 2025-2026-2" />
@@ -453,7 +507,9 @@ function resolveErrorMessage(error: unknown, fallback: string) {
         <el-input v-model="offeringForm.scheduleText" placeholder="例如 周一 1-2节" />
       </el-form-item>
       <el-form-item label="教室">
-        <el-input v-model="offeringForm.classroom" placeholder="例如 A教学楼302" />
+        <el-select v-model="offeringForm.classroom" class="full-field" filterable allow-create default-first-option placeholder="请选择教室">
+          <el-option v-for="classroom in classrooms" :key="classroom" :label="classroom" :value="classroom" />
+        </el-select>
       </el-form-item>
       <el-form-item label="选课时间">
         <el-date-picker
@@ -470,5 +526,18 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-button @click="offeringDialogVisible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="saveOffering">保存</el-button>
     </template>
+  </el-dialog>
+
+  <el-dialog v-model="studentsDialogVisible" :title="`${currentOfferingTitle} 已选学生`" width="760px">
+    <el-table :data="offeringStudents" empty-text="暂无选课学生">
+      <el-table-column prop="studentNo" label="学号" width="120" />
+      <el-table-column prop="studentName" label="姓名" width="100" />
+      <el-table-column prop="className" label="班级" min-width="140" />
+      <el-table-column prop="major" label="专业" min-width="140" />
+      <el-table-column prop="gradeStatus" label="成绩状态" width="100" />
+      <el-table-column label="选课时间" width="170">
+        <template #default="{ row }">{{ formatDateTime(row.selectedAt) }}</template>
+      </el-table-column>
+    </el-table>
   </el-dialog>
 </template>
