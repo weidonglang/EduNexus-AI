@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   aiModelsApi,
+  aiSafetyConfigsApi,
   aiSearchConfigApi,
   createAiModelApi,
   disableAiModelApi,
@@ -12,7 +13,9 @@ import {
   testAiModelApi,
   testAiSearchApi,
   updateAiModelApi,
+  updateAiSafetyConfigsApi,
   updateAiSearchConfigApi,
+  type AiSafetyConfig,
   type AiModelRecord,
   type AiModelRequest,
   type SearchConfig,
@@ -30,6 +33,8 @@ const searchSaving = ref(false)
 const searchTesting = ref(false)
 const searchQuery = ref('Spring Cloud Alibaba Nacos Discovery 最新用法')
 const searchResults = ref<SearchResult[]>([])
+const safetyConfigs = ref<AiSafetyConfig[]>([])
+const safetySaving = ref(false)
 
 const modelForm = reactive<AiModelRequest>({
   name: '',
@@ -56,9 +61,10 @@ onMounted(loadAll)
 async function loadAll() {
   loading.value = true
   try {
-    const [modelResponse, configResponse] = await Promise.all([aiModelsApi(), aiSearchConfigApi()])
+    const [modelResponse, configResponse, safetyResponse] = await Promise.all([aiModelsApi(), aiSearchConfigApi(), aiSafetyConfigsApi()])
     models.value = modelResponse.data
     searchConfig.value = configResponse.data
+    safetyConfigs.value = safetyResponse.data
   } finally {
     loading.value = false
   }
@@ -171,6 +177,22 @@ async function testSearch() {
   }
 }
 
+async function saveSafetyConfigs() {
+  safetySaving.value = true
+  try {
+    await updateAiSafetyConfigsApi(safetyConfigs.value.map((item) => ({
+      scene: item.scene,
+      enabled: item.enabled,
+      strategy: item.strategy,
+      description: item.description,
+    })))
+    ElMessage.success('安全策略已保存')
+    await loadAll()
+  } finally {
+    safetySaving.value = false
+  }
+}
+
 function statusTag(status?: string) {
   if (status === 'UP') return 'success'
   if (status === 'DOWN') return 'danger'
@@ -253,6 +275,32 @@ function statusTag(status?: string) {
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column prop="link" label="链接" min-width="260" show-overflow-tooltip />
         <el-table-column prop="summary" label="摘要" min-width="260" show-overflow-tooltip />
+      </el-table>
+    </article>
+
+    <article class="work-panel">
+      <div class="panel-title-row">
+        <h2>AI 安全策略</h2>
+        <el-button type="primary" :loading="safetySaving" @click="saveSafetyConfigs">保存策略</el-button>
+      </div>
+      <el-table :data="safetyConfigs" empty-text="暂无安全策略">
+        <el-table-column prop="scene" label="场景" width="160" />
+        <el-table-column label="状态" width="130">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" active-text="启用" inactive-text="停用" />
+          </template>
+        </el-table-column>
+        <el-table-column label="策略" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.strategy">
+              <el-option label="阻断" value="block" />
+              <el-option label="告警" value="warn" />
+              <el-option label="复核" value="review" />
+              <el-option label="仅记录" value="log_only" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="说明" min-width="260" show-overflow-tooltip />
       </el-table>
     </article>
   </section>

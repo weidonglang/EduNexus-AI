@@ -12,12 +12,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.api.PageResponse;
 import weidonglang.tianshiwebside.common.api.Pagination;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
 import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.error.ErrorCode;
+import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 import weidonglang.tianshiwebside.student.mapper.StudentMapper;
 
 import java.time.Duration;
@@ -29,10 +32,19 @@ import java.util.List;
 public class StudentStatusChangeController {
     private final StudentMapper studentMapper;
     private final QueryCacheService queryCacheService;
+    private final ContentModerationService moderationService;
+    private final AuditLogService auditLogService;
 
-    public StudentStatusChangeController(StudentMapper studentMapper, QueryCacheService queryCacheService) {
+    public StudentStatusChangeController(
+            StudentMapper studentMapper,
+            QueryCacheService queryCacheService,
+            ContentModerationService moderationService,
+            AuditLogService auditLogService
+    ) {
         this.studentMapper = studentMapper;
         this.queryCacheService = queryCacheService;
+        this.moderationService = moderationService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -66,7 +78,9 @@ public class StudentStatusChangeController {
             Authentication authentication,
             @Valid @RequestBody SubmitStatusChangeRequest request
     ) {
-        Long studentId = studentMapper.findStudentIdByUsername(authenticatedUsername(authentication));
+        String username = authenticatedUsername(authentication);
+        moderationService.checkConfigured("STUDENT_CONTENT", request.reason(), username);
+        Long studentId = studentMapper.findStudentIdByUsername(username);
         if (studentId == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Student profile not found");
         }
@@ -79,6 +93,8 @@ public class StudentStatusChangeController {
                 Instant.now()
         );
         studentMapper.insertStatusChange(command);
+        auditLogService.record(username, "SUBMIT_STATUS_CHANGE", "STATUS_CHANGE", command.getId(),
+                request.type().name(), TraceIdHolder.get());
         queryCacheService.evictByPrefix("query:student:status-changes:" + authentication.getName());
         queryCacheService.evictByPrefix("query:admin:status-changes:");
 

@@ -71,6 +71,15 @@ export interface SearchTestResponse {
   latencyMs?: number
 }
 
+export interface AiSafetyConfig {
+  id: number
+  scene: string
+  enabled: boolean
+  strategy: string
+  description?: string
+  updatedAt: string
+}
+
 export function aiModelsApi() {
   return http.get<never, ApiResponse<AiModelRecord[]>>('/admin/ai/models')
 }
@@ -109,4 +118,12 @@ export function updateAiSearchConfigApi(payload: Omit<SearchConfig, 'id' | 'last
 
 export function testAiSearchApi(query: string, scene = 'ADMIN_TEST') {
   return http.post<never, ApiResponse<SearchTestResponse>>('/admin/ai/search/test', { query, scene })
+}
+
+export function aiSafetyConfigsApi() {
+  return http.get<never, ApiResponse<AiSafetyConfig[]>>('/admin/ai/safety/config')
+}
+
+export function updateAiSafetyConfigsApi(configs: Array<Pick<AiSafetyConfig, 'scene' | 'enabled' | 'strategy' | 'description'>>) {
+  return http.put<never, ApiResponse<AiSafetyConfig[]>>('/admin/ai/safety/config', { configs })
 }

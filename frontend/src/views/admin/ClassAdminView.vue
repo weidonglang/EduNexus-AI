@@ -42,6 +42,7 @@ const classForm = reactive({
   grade: '2023',
   className: '',
   advisor: '',
+  homeroomTeacherUsername: '',
 })
 
 const selectedClass = computed(() => classes.value.find((item) => item.id === selectedClassId.value))
@@ -92,6 +93,7 @@ function openCreateClass() {
   classForm.grade = '2023'
   classForm.className = ''
   classForm.advisor = ''
+  classForm.homeroomTeacherUsername = ''
   classDialogVisible.value = true
 }
 
@@ -102,6 +104,7 @@ function openEditClass(row: AcademicClass) {
   classForm.grade = row.grade
   classForm.className = row.className
   classForm.advisor = row.advisor || ''
+  classForm.homeroomTeacherUsername = row.homeroomTeacherUsername || ''
   classDialogVisible.value = true
 }
 
@@ -246,6 +249,7 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-table :data="classes" highlight-current-row empty-text="暂无班级" @row-click="selectClass">
         <el-table-column prop="className" label="班级" min-width="150" />
         <el-table-column prop="major" label="专业" min-width="140" />
+        <el-table-column prop="homeroomTeacherName" label="班主任" min-width="110" />
         <el-table-column prop="studentCount" label="人数" width="70" />
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
@@ -301,6 +305,7 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-form-item label="年级"><el-input v-model="classForm.grade" /></el-form-item>
       <el-form-item label="班级"><el-input v-model="classForm.className" /></el-form-item>
       <el-form-item label="负责人"><el-input v-model="classForm.advisor" /></el-form-item>
+      <el-form-item label="教师账号"><el-input v-model="classForm.homeroomTeacherUsername" placeholder="绑定 TEACHER 角色账号" /></el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="classDialogVisible = false">取消</el-button>

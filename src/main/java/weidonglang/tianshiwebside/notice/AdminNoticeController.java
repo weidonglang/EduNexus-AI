@@ -46,7 +46,7 @@ public class AdminNoticeController {
      * 并为目标用户生成通知，用于首页公告、选课通知、考试通知和审核通知展示。
      */
     public ApiResponse<NoticeMapper.NoticeRow> publish(Principal principal, @Valid @RequestBody PublishNoticeRequest request) {
-        moderationService.check("NOTICE", request.title() + "\n" + request.content(), principal.getName(), true);
+        moderationService.checkConfigured("NOTICE", request.title() + "\n" + request.content(), principal.getName());
         NoticeMapper.NoticeCommand command = new NoticeMapper.NoticeCommand(
                 request.title().trim(), request.content().trim(), request.category().trim(), request.pinned(),
                 Instant.now(), principal.getName());

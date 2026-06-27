@@ -12,12 +12,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.api.PageResponse;
 import weidonglang.tianshiwebside.common.api.Pagination;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
 import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.error.ErrorCode;
+import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 import weidonglang.tianshiwebside.student.mapper.RegistrationApplicationMapper;
 import weidonglang.tianshiwebside.student.mapper.StudentMapper;
 
@@ -31,15 +34,21 @@ public class RegistrationApplicationController {
     private final StudentMapper studentMapper;
     private final RegistrationApplicationMapper applicationMapper;
     private final QueryCacheService queryCacheService;
+    private final ContentModerationService moderationService;
+    private final AuditLogService auditLogService;
 
     public RegistrationApplicationController(
             StudentMapper studentMapper,
             RegistrationApplicationMapper applicationMapper,
-            QueryCacheService queryCacheService
+            QueryCacheService queryCacheService,
+            ContentModerationService moderationService,
+            AuditLogService auditLogService
     ) {
         this.studentMapper = studentMapper;
         this.applicationMapper = applicationMapper;
         this.queryCacheService = queryCacheService;
+        this.moderationService = moderationService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -72,7 +81,10 @@ public class RegistrationApplicationController {
             Authentication authentication,
             @Valid @RequestBody SubmitRegistrationApplicationRequest request
     ) {
-        Long studentId = studentMapper.findStudentIdByUsername(authenticatedUsername(authentication));
+        String username = authenticatedUsername(authentication);
+        moderationService.checkConfigured("STUDENT_CONTENT",
+                request.targetName() + "\n" + normalizeOptional(request.courseName()) + "\n" + request.reason(), username);
+        Long studentId = studentMapper.findStudentIdByUsername(username);
         if (studentId == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Student profile not found");
         }
@@ -88,6 +100,8 @@ public class RegistrationApplicationController {
                         Instant.now()
         );
         applicationMapper.insert(command);
+        auditLogService.record(username, "SUBMIT_REGISTRATION_APPLICATION", "REGISTRATION_APPLICATION", command.getId(),
+                request.type().name(), TraceIdHolder.get());
         queryCacheService.evictByPrefix("query:student:registration-applications:" + authentication.getName());
         queryCacheService.evictByPrefix("query:admin:registration-applications:");
 

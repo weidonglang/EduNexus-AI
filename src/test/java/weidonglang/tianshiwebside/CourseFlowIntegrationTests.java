@@ -16,6 +16,7 @@ import weidonglang.tianshiwebside.course.grab.LocalCourseGrabService;
 import weidonglang.tianshiwebside.course.mapper.AdminCourseOfferingRow;
 import weidonglang.tianshiwebside.course.mapper.AdminCourseRow;
 import weidonglang.tianshiwebside.student.AdminClassController;
+import weidonglang.tianshiwebside.student.StudentClassController;
 import weidonglang.tianshiwebside.teacher.TeacherController;
 
 import java.time.Instant;
@@ -44,6 +45,9 @@ class CourseFlowIntegrationTests {
 
     @Autowired
     private AdminClassController adminClassController;
+
+    @Autowired
+    private StudentClassController studentClassController;
 
     @BeforeEach
     void setUpSecurityContext() {
@@ -228,6 +232,49 @@ class CourseFlowIntegrationTests {
     }
 
     @Test
+    void homeroomTeacherAndStudentClassViewsUseBoundClassData() {
+        String suffix = uniqueSuffix();
+        String teacherUsername = "home_teacher_" + suffix;
+        String teacherName = "班主任老师" + suffix;
+        seedUser(teacherUsername, teacherName, "TEACHER");
+
+        var classRow = adminClassController.createClass(adminAuth(), new AdminClassController.ClassRequest(
+                "信息工程学院",
+                "软件工程",
+                "2027",
+                "软件工程班主任闭环" + suffix + "班",
+                "",
+                teacherUsername
+        )).data();
+
+        String studentNo = "home_student_" + suffix;
+        adminClassController.batchStudents(adminAuth(), classRow.id(), new AdminClassController.BatchStudentsRequest(
+                null,
+                List.of(new AdminClassController.StudentImportRow(
+                        studentNo,
+                        "班主任闭环学生" + suffix,
+                        "信息工程学院",
+                        "软件工程",
+                        "2027",
+                        "13812345679",
+                        studentNo + "@example.com",
+                        "123456"
+                ))
+        ));
+
+        var teacherClasses = teacherController.homeroomClasses(auth(teacherUsername)).data();
+        var teacherStudents = teacherController.homeroomClassStudents(auth(teacherUsername), classRow.id()).data();
+        var studentClass = studentClassController.myClass(new TestingAuthenticationToken(studentNo, null, "ROLE_STUDENT")).data();
+
+        assertThat(classRow.homeroomTeacherUsername()).isEqualTo(teacherUsername);
+        assertThat(classRow.advisor()).isEqualTo(teacherName);
+        assertThat(teacherClasses).anyMatch(row -> row.classId().equals(classRow.id()));
+        assertThat(teacherStudents).anyMatch(row -> row.studentNo().equals(studentNo));
+        assertThat(studentClass.homeroomTeacherName()).isEqualTo(teacherName);
+        assertThat(studentClass.members()).anyMatch(row -> row.studentNo().equals(studentNo) && row.name().contains("班主任闭环学生"));
+    }
+
+    @Test
     void studentCannotSelectOfferingsWithSameSchedule() {
         String suffix = uniqueSuffix();
         String studentUsername = "conflict_student_" + suffix;
@@ -250,6 +297,17 @@ class CourseFlowIntegrationTests {
                 insert into sys_user (username, password_hash, display_name, status)
                 values (?, ?, ?, ?)
                 """, username, "{noop}123456", displayName, "ACTIVE");
+    }
+
+    private void seedUser(String username, String displayName, String roleCode) {
+        seedUser(username, displayName);
+        Integer roleCount = jdbcTemplate.queryForObject("select count(*) from sys_role where code = ?", Integer.class, roleCode);
+        if (roleCount == null || roleCount == 0) {
+            jdbcTemplate.update("insert into sys_role (code, name) values (?, ?)", roleCode, roleCode);
+        }
+        Long userId = jdbcTemplate.queryForObject("select id from sys_user where username = ?", Long.class, username);
+        Long roleId = jdbcTemplate.queryForObject("select id from sys_role where code = ?", Long.class, roleCode);
+        jdbcTemplate.update("insert into sys_user_role (user_id, role_id) values (?, ?)", userId, roleId);
     }
 
     private void seedStudent(String username, String displayName) {

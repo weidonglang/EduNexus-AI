@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -23,11 +24,13 @@ public class AiSearchService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final ContentModerationService moderationService;
 
-    public AiSearchService(JdbcTemplate jdbcTemplate) {
+    public AiSearchService(JdbcTemplate jdbcTemplate, ContentModerationService moderationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = new ObjectMapper().findAndRegisterModules();
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+        this.moderationService = moderationService;
     }
 
     public AiSearchDtos.SearchConfig config() {
@@ -84,6 +87,11 @@ public class AiSearchService {
         long start = System.nanoTime();
         try {
             List<AiSearchDtos.SearchResult> results = fetch(current, query);
+            for (AiSearchDtos.SearchResult result : results) {
+                moderationService.checkConfigured("SEARCH_RESULT",
+                        result.title() + "\n" + result.summary() + "\n" + result.link(),
+                        username == null ? "anonymous" : username);
+            }
             long latency = Duration.ofNanos(System.nanoTime() - start).toMillis();
             recordSearchCheck("UP", latency, null);
             log(username, safeScene, query, current.provider(), results.size(), false, null);
