@@ -1,15 +1,18 @@
 ﻿import os
 import queue
+import json
+import shutil
 import subprocess
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
+from urllib import error, parse, request
 
 
 ROOT = Path(__file__).resolve().parents[1]
 NODE_SCRIPT = ROOT / "scripts" / "course-grab-load-test.js"
-MYSQL_EXE = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
+WINDOWS_MYSQL_EXE = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
 
 
 class CourseGrabPanel(tk.Tk):
@@ -34,9 +37,12 @@ class CourseGrabPanel(tk.Tk):
             "cleanup_username": tk.StringVar(value=os.environ.get("CLEANUP_USERNAME", "")),
             "redis_host": tk.StringVar(value="localhost"),
             "redis_port": tk.StringVar(value="6379"),
+            "course_source": tk.StringVar(value=os.environ.get("COURSE_SOURCE", "backend-api")),
+            "mysql_host": tk.StringVar(value=os.environ.get("DB_HOST", "localhost")),
+            "mysql_port": tk.StringVar(value=os.environ.get("DB_PORT", "3306")),
             "mysql_user": tk.StringVar(value=os.environ.get("DB_USERNAME", "root")),
             "mysql_password": tk.StringVar(value=os.environ.get("DB_PASSWORD", "")),
-            "mysql_database": tk.StringVar(value="tianshiwebside"),
+            "mysql_database": tk.StringVar(value=os.environ.get("DB_DATABASE", "tianshiwebside")),
             "smart_mode": tk.StringVar(value="random"),
             "capacity_value": tk.StringVar(value="100"),
             "smart_switch": tk.BooleanVar(value=True),
@@ -156,12 +162,24 @@ class CourseGrabPanel(tk.Tk):
         db_tools.grid(row=1, column=0, sticky="ew", pady=(8, 8))
         for col in range(6):
             db_tools.columnconfigure(col, weight=1)
-        ttk.Label(db_tools, text="课程容量").grid(row=0, column=0, sticky="w")
-        ttk.Entry(db_tools, textvariable=self.vars["capacity_value"], width=10).grid(row=0, column=1, sticky="ew", padx=(4, 12))
-        ttk.Button(db_tools, text="修改所选容量", command=self.set_selected_capacity).grid(row=0, column=2, sticky="ew", padx=4)
-        ttk.Button(db_tools, text="清空所选记录", command=self.clear_selected_records).grid(row=0, column=3, sticky="ew", padx=4)
-        ttk.Button(db_tools, text="清空Redis库存", command=self.clear_selected_redis_stock).grid(row=0, column=4, sticky="ew", padx=4)
-        ttk.Button(db_tools, text="刷新", command=self.refresh_courses).grid(row=0, column=5, sticky="ew", padx=4)
+        ttk.Label(db_tools, text="刷新模式").grid(row=0, column=0, sticky="w")
+        ttk.Combobox(
+            db_tools,
+            textvariable=self.vars["course_source"],
+            values=("backend-api", "mysql-direct"),
+            state="readonly",
+            width=14,
+        ).grid(row=0, column=1, sticky="ew", padx=(4, 12))
+        ttk.Label(db_tools, text="MySQL").grid(row=0, column=2, sticky="w")
+        ttk.Entry(db_tools, textvariable=self.vars["mysql_host"], width=12).grid(row=0, column=3, sticky="ew", padx=4)
+        ttk.Entry(db_tools, textvariable=self.vars["mysql_port"], width=8).grid(row=0, column=4, sticky="ew", padx=4)
+        ttk.Entry(db_tools, textvariable=self.vars["mysql_database"], width=12).grid(row=0, column=5, sticky="ew", padx=4)
+        ttk.Label(db_tools, text="课程容量").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(db_tools, textvariable=self.vars["capacity_value"], width=10).grid(row=1, column=1, sticky="ew", padx=(4, 12), pady=(8, 0))
+        ttk.Button(db_tools, text="修改所选容量", command=self.set_selected_capacity).grid(row=1, column=2, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(db_tools, text="清空所选记录", command=self.clear_selected_records).grid(row=1, column=3, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(db_tools, text="清空Redis库存", command=self.clear_selected_redis_stock).grid(row=1, column=4, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(db_tools, text="刷新", command=self.refresh_courses).grid(row=1, column=5, sticky="ew", padx=4, pady=(8, 0))
 
         help_box = ttk.LabelFrame(right, text="模式说明", padding=10)
         help_box.grid(row=2, column=0, sticky="ew", pady=(0, 8))
@@ -205,7 +223,10 @@ class CourseGrabPanel(tk.Tk):
         ttk.Entry(parent, textvariable=self.vars[key], show=show).grid(row=row, column=col + 1, sticky="ew", padx=(4, 12), pady=3)
 
     def refresh_courses(self):
-        self._append_output("正在从 MySQL 刷新课程教学班列表...\n")
+        if self.vars["course_source"].get() == "mysql-direct":
+            self._append_output("正在通过 MySQL 直连刷新课程教学班列表...\n")
+        else:
+            self._append_output("正在通过后端 API 刷新课程教学班列表...\n")
         threading.Thread(target=self._load_courses_worker, daemon=True).start()
 
     def _load_courses_worker(self):
@@ -218,8 +239,9 @@ class CourseGrabPanel(tk.Tk):
             self.output_queue.put(("text", f"课程加载失败：{exc}\n"))
 
     def _query_offerings(self):
-        if not Path(MYSQL_EXE).exists():
-            raise RuntimeError(f"mysql.exe not found: {MYSQL_EXE}")
+        if self.vars["course_source"].get() != "mysql-direct":
+            return self._query_offerings_from_api()
+        mysql_exe = self._resolve_mysql_exe()
         sql = (
             "select co.id, c.code, c.name, co.teacher_name, co.capacity, "
             "count(cs.id), co.capacity - count(cs.id), co.schedule_text, co.classroom "
@@ -230,19 +252,26 @@ class CourseGrabPanel(tk.Tk):
             "order by co.id"
         )
         cmd = [
-            MYSQL_EXE,
-            f"-u{self.vars['mysql_user'].get()}",
-            f"-p{self.vars['mysql_password'].get()}",
+            mysql_exe,
+            "-h",
+            self.vars["mysql_host"].get().strip() or "localhost",
+            "-P",
+            self.vars["mysql_port"].get().strip() or "3306",
+            "-u",
+            self.vars["mysql_user"].get().strip() or "root",
             "-D",
-            self.vars["mysql_database"].get(),
+            self.vars["mysql_database"].get().strip() or "tianshiwebside",
             "--default-character-set=utf8mb4",
             "-B",
             "-e",
             sql,
         ]
+        password = self.vars["mysql_password"].get()
+        if password:
+            cmd.insert(7, f"-p{password}")
         result = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, encoding="utf-8", errors="replace")
         if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+            raise RuntimeError(self._mysql_error_message(result.stderr.strip() or result.stdout.strip()))
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         rows = []
         for line in lines[1:]:
@@ -251,23 +280,110 @@ class CourseGrabPanel(tk.Tk):
                 rows.append(parts[:9])
         return rows
 
+    def _query_offerings_from_api(self):
+        token = self._admin_token()
+        url = self.vars["base_url"].get().rstrip("/") + "/api/admin/course-offerings?" + parse.urlencode({
+            "page": 1,
+            "size": 200,
+        })
+        try:
+            req = request.Request(url, headers={"Authorization": f"Bearer {token}"})
+            with request.urlopen(req, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            if exc.code in (401, 403):
+                raise RuntimeError("token / 账号权限错误：请填写具备管理员权限的账号和密码")
+            raise RuntimeError(f"后端 API 返回错误：HTTP {exc.code}")
+        except error.URLError as exc:
+            raise RuntimeError(f"后端 API 未启动或不可访问：{exc.reason}")
+        data = payload.get("data", {})
+        records = data.get("records", []) if isinstance(data, dict) else []
+        rows = []
+        for item in records:
+            capacity = int(item.get("capacity") or 0)
+            selected = int(item.get("selectedCount") or item.get("selected") or 0)
+            rows.append([
+                str(item.get("id")),
+                str(item.get("courseCode") or item.get("code") or ""),
+                str(item.get("courseName") or item.get("name") or ""),
+                str(item.get("teacherName") or ""),
+                str(capacity),
+                str(selected),
+                str(max(0, capacity - selected)),
+                str(item.get("scheduleText") or ""),
+                str(item.get("classroom") or ""),
+            ])
+        return rows
+
+    def _admin_token(self):
+        username = self.vars["cleanup_username"].get().strip()
+        password = self.vars["admin_password"].get()
+        if not username or not password:
+            raise RuntimeError("后端 API 模式需要填写管理员账号和管理员密码")
+        url = self.vars["base_url"].get().rstrip("/") + "/api/auth/login"
+        body = json.dumps({"username": username, "password": password}).encode("utf-8")
+        try:
+            req = request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+            with request.urlopen(req, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            if exc.code in (401, 403):
+                raise RuntimeError("token / 账号权限错误：管理员账号或密码错误")
+            raise RuntimeError(f"后端登录接口返回错误：HTTP {exc.code}")
+        except error.URLError as exc:
+            raise RuntimeError(f"后端 API 未启动或不可访问：{exc.reason}")
+        token = payload.get("data", {}).get("accessToken")
+        if not token:
+            raise RuntimeError("后端登录接口未返回 accessToken")
+        return token
+
     def _run_mysql(self, sql):
-        if not Path(MYSQL_EXE).exists():
-            raise RuntimeError(f"mysql.exe not found: {MYSQL_EXE}")
+        mysql_exe = self._resolve_mysql_exe()
         cmd = [
-            MYSQL_EXE,
-            f"-u{self.vars['mysql_user'].get()}",
-            f"-p{self.vars['mysql_password'].get()}",
+            mysql_exe,
+            "-h",
+            self.vars["mysql_host"].get().strip() or "localhost",
+            "-P",
+            self.vars["mysql_port"].get().strip() or "3306",
+            "-u",
+            self.vars["mysql_user"].get().strip() or "root",
             "-D",
-            self.vars["mysql_database"].get(),
+            self.vars["mysql_database"].get().strip() or "tianshiwebside",
             "--default-character-set=utf8mb4",
             "-e",
             sql,
         ]
+        password = self.vars["mysql_password"].get()
+        if password:
+            cmd.insert(7, f"-p{password}")
         result = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, encoding="utf-8", errors="replace")
         if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+            raise RuntimeError(self._mysql_error_message(result.stderr.strip() or result.stdout.strip()))
         return result.stdout
+
+    def _resolve_mysql_exe(self):
+        candidates = [
+            os.environ.get("MYSQL_EXE"),
+            shutil.which("mysql"),
+            WINDOWS_MYSQL_EXE,
+        ]
+        for candidate in candidates:
+            if candidate and Path(candidate).exists():
+                return str(candidate)
+        raise RuntimeError("mysql.exe 未找到：请设置 MYSQL_EXE，或将 mysql 加入 PATH，或安装 MySQL 客户端")
+
+    def _mysql_error_message(self, raw):
+        message = raw or "数据库连接失败"
+        lower = message.lower()
+        if "access denied" in lower:
+            return "账号密码错误：" + message
+        if "unknown database" in lower:
+            return "数据库不存在：" + message
+        if "doesn't exist" in lower or "does not exist" in lower:
+            return "表不存在：" + message
+        if "can't connect" in lower or "connection refused" in lower:
+            return "数据库连接失败：" + message
+        return message
 
     def apply_filter(self):
         rows = getattr(self, "all_rows", [])

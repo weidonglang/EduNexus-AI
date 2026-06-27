@@ -1,8 +1,8 @@
-# Academic-Nexus v1.3.0 Spring Cloud Verification
+# Academic-Nexus v1.4.0 Spring Cloud Verification
 
 Updated: 2026-06-27
 
-This document records the Spring Cloud/Nacos/OpenFeign implementation and the commands used to verify it for the v1.3.0 closure release.
+This document records the Spring Cloud/Nacos/OpenFeign implementation and the commands used to verify it for the v1.4.0 closure release.
 
 ## Implemented Boundary
 
@@ -144,10 +144,10 @@ npm run build
 Result: `npm audit` found 0 vulnerabilities, production build passed.
 
 ```powershell
-.\scripts\build-release.ps1 -Version 1.3.0
+.\scripts\build-release.ps1 -Version 1.4.0
 ```
 
-Expected result: `release/Academic-Nexus-1.3.0.zip` is generated successfully.
+Expected result: `release/Academic-Nexus-1.4.0.zip` is generated successfully.
 
 ```powershell
 java -jar ai-service\target\tianshi-ai-service-0.0.1-SNAPSHOT.jar --server.port=18090 --ollama.enabled=false

@@ -39,7 +39,7 @@ async function submit() {
   <main class="login-page">
     <section class="login-hero">
       <div class="login-hero-content">
-        <span class="school-label">天津天狮学院 · 教务服务入口</span>
+        <span class="school-label">教学综合信息服务平台 · 教务服务入口</span>
         <h1>教学综合信息服务平台</h1>
         <p>面向学生、教师与教务管理人员，统一承载学籍、选课、课表、成绩、考试、通知和教学评价等核心业务。</p>
         <div class="login-highlights">

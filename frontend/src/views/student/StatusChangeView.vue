@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   statusChangeAttachmentsApi,
+  statusChangeAttachmentDownloadUrl,
   statusChangeApplicationsApi,
   submitStatusChangeApplicationApi,
   uploadStatusChangeAttachmentApi,
@@ -136,6 +137,11 @@ function formatDateTime(value?: string) {
   return new Date(value).toLocaleString('zh-CN')
 }
 
+function downloadAttachment(row: StatusChangeAttachment) {
+  if (!currentApplication.value) return
+  window.open(statusChangeAttachmentDownloadUrl(currentApplication.value.id, row.id), '_blank')
+}
+
 function resolveErrorMessage(error: unknown, fallback: string) {
   if (
     typeof error === 'object' &&
@@ -236,6 +242,11 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       </el-table-column>
       <el-table-column label="上传时间" width="180">
         <template #default="{ row }">{{ formatDateTime(row.uploadedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="90">
+        <template #default="{ row }">
+          <el-button type="primary" link @click="downloadAttachment(row)">下载</el-button>
+        </template>
       </el-table-column>
     </el-table>
   </el-dialog>

@@ -1,4 +1,5 @@
 import { http, type ApiResponse, type PageResponse } from './http'
+import type { AiModelRecord } from './aiModel'
 
 const AI_REQUEST_TIMEOUT_MS = 90000
 const AI_LONG_REQUEST_TIMEOUT_MS = 180000
@@ -112,9 +113,14 @@ export interface AiCallLogRow {
   functionType: string
   promptSummary: string
   modelName: string
+  serviceMode?: string
   durationMs: number
   success: boolean
+  level: 'INFO' | 'WARN' | 'ERROR'
   errorMessage?: string
+  traceId?: string
+  sessionId?: number
+  modelId?: number
   createdAt: string
 }
 
@@ -122,8 +128,34 @@ export function askAiAssistantApi(question: string) {
   return http.post<never, ApiResponse<AiAssistantResponse>>('/ai/assistant/ask', { question }, { timeout: AI_REQUEST_TIMEOUT_MS })
 }
 
-export function aiChatApi(message: string) {
-  return http.post<never, ApiResponse<AiChatResponse>>('/ai/chat', { message }, { timeout: AI_REQUEST_TIMEOUT_MS })
+export interface AiChatSession {
+  id: number
+  title: string
+  modelId?: number
+  modelName?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AiChatMessage {
+  id: number
+  sessionId: number
+  role: 'user' | 'assistant'
+  content: string
+  serviceMode?: string
+  modelName?: string
+  searchUsed: boolean
+  createdAt: string
+}
+
+export interface AiChatSendResponse {
+  response: AiChatResponse
+  messages: AiChatMessage[]
+  session: AiChatSession
+}
+
+export function aiChatApi(message: string, modelId?: number) {
+  return http.post<never, ApiResponse<AiChatResponse>>('/ai/chat', { message, modelId }, { timeout: AI_REQUEST_TIMEOUT_MS })
 }
 
 export function aiStatusApi() {
@@ -154,6 +186,46 @@ export function analyzeLoadTestReportApi(jsonName: string) {
   )
 }
 
-export function aiCallLogsApi(params?: { page?: number; size?: number }) {
+export function aiChatModelsApi() {
+  return http.get<never, ApiResponse<AiModelRecord[]>>('/ai/chat/models')
+}
+
+export function aiChatSessionsApi() {
+  return http.get<never, ApiResponse<AiChatSession[]>>('/ai/chat/sessions')
+}
+
+export function createAiChatSessionApi(payload: { title?: string; modelId?: number }) {
+  return http.post<never, ApiResponse<AiChatSession>>('/ai/chat/sessions', payload)
+}
+
+export function updateAiChatSessionApi(sessionId: number, payload: { title?: string; modelId?: number }) {
+  return http.put<never, ApiResponse<AiChatSession>>(`/ai/chat/sessions/${sessionId}`, payload)
+}
+
+export function deleteAiChatSessionApi(sessionId: number) {
+  return http.delete<never, ApiResponse<void>>(`/ai/chat/sessions/${sessionId}`)
+}
+
+export function aiChatMessagesApi(sessionId: number) {
+  return http.get<never, ApiResponse<AiChatMessage[]>>(`/ai/chat/sessions/${sessionId}/messages`)
+}
+
+export function sendAiChatMessageApi(sessionId: number, payload: { message: string; modelId?: number }) {
+  return http.post<never, ApiResponse<AiChatSendResponse>>(`/ai/chat/sessions/${sessionId}/messages`, payload, {
+    timeout: AI_REQUEST_TIMEOUT_MS,
+  })
+}
+
+export function aiCallLogsApi(params?: {
+  keyword?: string
+  username?: string
+  functionType?: string
+  success?: boolean | ''
+  level?: string
+  startAt?: string
+  endAt?: string
+  page?: number
+  size?: number
+}) {
   return http.get<never, ApiResponse<PageResponse<AiCallLogRow>>>('/admin/ai/call-logs', { params })
 }

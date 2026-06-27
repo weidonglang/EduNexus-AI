@@ -89,7 +89,7 @@ const rewards = computed(() => [
 
 const studyResume = computed(() => [
   { startDate: '2020-09', endDate: '2023-06', school: '天津市示范高中', role: '学生' },
-  { startDate: '2023-09', endDate: '至今', school: '天津天狮学院', role: '本科生' },
+  { startDate: '2023-09', endDate: '至今', school: '教学综合信息服务平台', role: '本科生' },
 ])
 
 const gradeSummary = computed(() => {

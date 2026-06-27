@@ -6,6 +6,7 @@ export interface AdminAttachment {
   originalFilename: string
   storedPath: string
   contentType?: string
+  fileTypeLabel?: string
   sizeBytes: number
   uploadedAt: string
   studentNo: string

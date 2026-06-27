@@ -52,7 +52,7 @@ async function loadData() {
   } catch {
     rows.value = []
     total.value = 0
-    apiError.value = '后端接口连接失败，请确认 Spring Boot 已在 http://localhost:8080 启动。'
+    apiError.value = '后端接口连接失败，请确认 Spring Boot 本地 http://localhost:8080 或 Docker http://localhost:8088 已启动。'
   } finally {
     loading.value = false
   }

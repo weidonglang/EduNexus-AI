@@ -16,7 +16,7 @@
 - [ ] `.\mvnw.cmd -f ai-service/pom.xml test`
 - [ ] `npm --prefix frontend audit`
 - [ ] `docker compose config`
-- [ ] `.\scripts\build-release.ps1 -Version 1.3.0 -SkipTests`
+- [ ] `.\scripts\build-release.ps1 -Version 1.4.0 -SkipTests`
 
 ## 管理员页面
 
@@ -61,7 +61,7 @@
 
 ## 交付包
 
-- [ ] `release/Academic-Nexus-1.3.0.zip` 存在。
+- [ ] `release/Academic-Nexus-1.4.0.zip` 存在。
 - [ ] zip 内包含 `academic-nexus-web.jar`。
 - [ ] zip 内包含 `academic-nexus-ai-service.jar`。
 - [ ] zip 内包含 `.env.example`。

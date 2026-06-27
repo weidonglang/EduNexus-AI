@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.3.0",
+    [string]$Version = "1.4.0",
     [switch]$SkipTests
 )
 
@@ -91,12 +91,17 @@ Invoke-Step "Assemble release directory" {
     Copy-RequiredFile -Source (Join-Path $Root "README.md") -Destination (Join-Path $PackageDir "README.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/startup-guide.md") -Destination (Join-Path $PackageDir "startup-guide.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/deployment-guide.md") -Destination (Join-Path $PackageDir "deployment-guide.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/batch-operations-guide.md") -Destination (Join-Path $PackageDir "batch-operations-guide.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/load-test-guide.md") -Destination (Join-Path $PackageDir "load-test-guide.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/spring-cloud-verification.md") -Destination (Join-Path $PackageDir "spring-cloud-verification.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/demo-checklist.md") -Destination (Join-Path $PackageDir "demo-checklist.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/issue-completion-matrix.md") -Destination (Join-Path $PackageDir "issue-completion-matrix.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/qa/v1.3-issue-closure-report.md") -Destination (Join-Path $PackageDir "v1.3-issue-closure-report.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/qa/v1.4-final-polish-report.md") -Destination (Join-Path $PackageDir "v1.4-final-polish-report.md")
     Copy-RequiredFile -Source (Join-Path $Root "CHANGELOG.md") -Destination (Join-Path $PackageDir "CHANGELOG.md")
     Copy-RequiredFile -Source (Join-Path $Root "docker-compose.yml") -Destination (Join-Path $PackageDir "docker-compose.yml")
+    Copy-RequiredFile -Source (Join-Path $Root "scripts/health-check.ps1") -Destination (Join-Path $PackageDir "health-check.ps1")
+    Copy-RequiredFile -Source (Join-Path $Root "scripts/health-check.sh") -Destination (Join-Path $PackageDir "health-check.sh")
 
     @'
 # Academic-Nexus release environment

@@ -188,16 +188,18 @@ public class DataInitializer {
             seedMenu("admin-files", "\u6587\u4ef6\u7ba1\u7406", "/admin/files", "FolderOpen", "admin", 70);
             seedMenu("admin-audit-logs", "\u64cd\u4f5c\u5ba1\u8ba1", "/admin/audit-logs", "ScrollText", "admin", 71);
             seedMenu("admin-registration-applications", "\u62a5\u540d\u7533\u8bf7\u5ba1\u6838", "/admin/registration-applications", "FileCheck2", "admin", 72);
-            seedMenu("admin-system-health", "\u7cfb\u7edf\u5065\u5eb7\u4e2d\u5fc3", "/admin/system-health", "Activity", "admin", 73);
-            seedMenu("admin-redis-monitor", "Redis\u72b6\u6001\u76d1\u63a7", "/admin/redis-monitor", "DatabaseZap", "admin", 74);
-            seedMenu("admin-course-selection-consistency", "\u9009\u8bfe\u4e00\u81f4\u6027\u62a5\u544a", "/admin/course-selection-consistency", "ListChecks", "admin", 75);
-            seedMenu("admin-data-dictionary", "\u6570\u636e\u5b57\u5178", "/admin/data-dictionary", "BookMarked", "admin", 76);
-            seedMenu("admin-sensitive-words", "\u654f\u611f\u8bcd\u4e0e\u5185\u5bb9\u5b89\u5168", "/admin/sensitive-words", "ShieldAlert", "admin", 77);
-            seedMenu("admin-load-test-reports", "\u538b\u6d4b\u5386\u53f2\u62a5\u544a", "/admin/load-test-reports", "ChartColumnBig", "admin", 78);
-            seedMenu("admin-database-browser", "\u6570\u636e\u5e93\u53ea\u8bfb\u6d4f\u89c8", "/admin/database-browser", "TableProperties", "admin", 79);
-            seedMenu("admin-ai-sql", "\u81ea\u7136\u8bed\u8a00\u67e5\u5e93", "/admin/ai-sql", "Sparkles", "admin", 80);
-            seedMenu("admin-ai-logs", "AI\u8c03\u7528\u65e5\u5fd7", "/admin/ai-logs", "ScrollText", "admin", 81);
-            seedMenu("admin-ai-models", "AI\u6a21\u578b\u4e0e\u8054\u7f51\u641c\u7d22", "/admin/ai-models", "BrainCircuit", "admin", 82);
+            seedMenu("admin-batch-tasks", "\u6279\u91cf\u4efb\u52a1\u4e2d\u5fc3", "/admin/batch-tasks", "ListChecks", "admin", 73);
+            seedMenu("admin-data-archive", "\u6570\u636e\u5f52\u6863\u6e05\u7406", "/admin/data-archive", "Archive", "admin", 74);
+            seedMenu("admin-system-health", "\u7cfb\u7edf\u5065\u5eb7\u4e2d\u5fc3", "/admin/system-health", "Activity", "admin", 75);
+            seedMenu("admin-redis-monitor", "Redis\u72b6\u6001\u76d1\u63a7", "/admin/redis-monitor", "DatabaseZap", "admin", 76);
+            seedMenu("admin-course-selection-consistency", "\u9009\u8bfe\u4e00\u81f4\u6027\u62a5\u544a", "/admin/course-selection-consistency", "ListChecks", "admin", 77);
+            seedMenu("admin-data-dictionary", "\u6570\u636e\u5b57\u5178", "/admin/data-dictionary", "BookMarked", "admin", 78);
+            seedMenu("admin-sensitive-words", "\u654f\u611f\u8bcd\u4e0e\u5185\u5bb9\u5b89\u5168", "/admin/sensitive-words", "ShieldAlert", "admin", 79);
+            seedMenu("admin-load-test-reports", "\u538b\u6d4b\u5386\u53f2\u62a5\u544a", "/admin/load-test-reports", "ChartColumnBig", "admin", 80);
+            seedMenu("admin-database-browser", "\u6570\u636e\u5e93\u53ea\u8bfb\u6d4f\u89c8", "/admin/database-browser", "TableProperties", "admin", 81);
+            seedMenu("admin-ai-sql", "\u81ea\u7136\u8bed\u8a00\u67e5\u5e93", "/admin/ai-sql", "Sparkles", "admin", 82);
+            seedMenu("admin-ai-logs", "AI\u8c03\u7528\u65e5\u5fd7", "/admin/ai-logs", "ScrollText", "admin", 83);
+            seedMenu("admin-ai-models", "AI\u6a21\u578b\u4e0e\u8054\u7f51\u641c\u7d22", "/admin/ai-models", "BrainCircuit", "admin", 84);
             seedPermission("COURSE_WRITE", "\u8bfe\u7a0b\u5199\u5165", "\u7ef4\u62a4\u8bfe\u7a0b\u548c\u6559\u5b66\u73ed");
             seedPermission("GRADE_READ", "\u6210\u7ee9\u67e5\u770b", "\u67e5\u770b\u6210\u7ee9\u6570\u636e");
             seedPermission("GRADE_WRITE", "\u6210\u7ee9\u5199\u5165", "\u5f55\u5165\u548c\u4fee\u6539\u6210\u7ee9");
@@ -267,6 +269,8 @@ public class DataInitializer {
                     "admin-files",
                     "admin-audit-logs",
                     "admin-registration-applications",
+                    "admin-batch-tasks",
+                    "admin-data-archive",
                     "admin-system-health",
                     "admin-redis-monitor",
                     "admin-course-selection-consistency",

@@ -3,10 +3,12 @@ package weidonglang.tianshiwebside.ai;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.api.PageResponse;
@@ -32,6 +34,7 @@ public class AiController {
     private final JdbcTemplate jdbcTemplate;
     private final AiModelRegistryService modelRegistryService;
     private final AiSearchService searchService;
+    private final AiChatSessionService chatSessionService;
 
     public AiController(
             AiAssistantService assistantService,
@@ -44,7 +47,8 @@ public class AiController {
             LoadTestAnalysisService loadTestAnalysisService,
             JdbcTemplate jdbcTemplate,
             AiModelRegistryService modelRegistryService,
-            AiSearchService searchService
+            AiSearchService searchService,
+            AiChatSessionService chatSessionService
     ) {
         this.assistantService = assistantService;
         this.chatService = chatService;
@@ -57,6 +61,7 @@ public class AiController {
         this.jdbcTemplate = jdbcTemplate;
         this.modelRegistryService = modelRegistryService;
         this.searchService = searchService;
+        this.chatSessionService = chatSessionService;
     }
 
     @PostMapping("/api/ai/assistant/ask")
@@ -66,7 +71,54 @@ public class AiController {
 
     @PostMapping("/api/ai/chat")
     public ApiResponse<AiChatResponse> chat(@Valid @RequestBody AiChatRequest request, Principal principal) {
-        return ApiResponse.success(chatService.chat(request.message(), principal));
+        return ApiResponse.success(chatService.chat(request.message(), principal, request.modelId(), null));
+    }
+
+    @GetMapping("/api/ai/chat/models")
+    public ApiResponse<List<AiModelRecord>> chatModels() {
+        return ApiResponse.success(chatSessionService.chatModels());
+    }
+
+    @GetMapping("/api/ai/chat/sessions")
+    public ApiResponse<List<AiChatSessionService.ChatSessionRow>> chatSessions(Principal principal) {
+        return ApiResponse.success(chatSessionService.sessions(principal));
+    }
+
+    @PostMapping("/api/ai/chat/sessions")
+    public ApiResponse<AiChatSessionService.ChatSessionRow> createChatSession(
+            @RequestBody AiChatSessionService.ChatSessionRequest request,
+            Principal principal
+    ) {
+        return ApiResponse.success(chatSessionService.create(principal, request));
+    }
+
+    @PutMapping("/api/ai/chat/sessions/{sessionId}")
+    public ApiResponse<AiChatSessionService.ChatSessionRow> updateChatSession(
+            @PathVariable Long sessionId,
+            @RequestBody AiChatSessionService.ChatSessionRequest request,
+            Principal principal
+    ) {
+        return ApiResponse.success(chatSessionService.update(principal, sessionId, request));
+    }
+
+    @DeleteMapping("/api/ai/chat/sessions/{sessionId}")
+    public ApiResponse<Void> deleteChatSession(@PathVariable Long sessionId, Principal principal) {
+        chatSessionService.delete(principal, sessionId);
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/api/ai/chat/sessions/{sessionId}/messages")
+    public ApiResponse<List<AiChatSessionService.ChatMessageRow>> chatMessages(@PathVariable Long sessionId, Principal principal) {
+        return ApiResponse.success(chatSessionService.messages(principal, sessionId));
+    }
+
+    @PostMapping("/api/ai/chat/sessions/{sessionId}/messages")
+    public ApiResponse<AiChatSessionService.ChatSendResponse> sendChatMessage(
+            @PathVariable Long sessionId,
+            @RequestBody AiChatSessionService.ChatMessageRequest request,
+            Principal principal
+    ) {
+        return ApiResponse.success(chatSessionService.send(principal, sessionId, request));
     }
 
     @GetMapping("/api/ai/status")
@@ -152,16 +204,32 @@ public class AiController {
     @GetMapping("/api/admin/ai/call-logs")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<PageResponse<AiCallLogRow>> callLogs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String functionType,
+            @RequestParam(required = false) Boolean success,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) Instant startAt,
+            @RequestParam(required = false) Instant endAt,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         int safePage = Pagination.safePage(page);
         int safeSize = Pagination.safeSize(size);
+        AiCallLogService.AiCallLogQuery query = new AiCallLogService.AiCallLogQuery(
+                keyword,
+                username,
+                functionType,
+                success,
+                level,
+                startAt,
+                endAt
+        );
         return ApiResponse.success(new PageResponse<>(
-                callLogService.logs(safeSize, Pagination.offset(safePage, safeSize)),
+                callLogService.logs(query, safeSize, Pagination.offset(safePage, safeSize)),
                 safePage,
                 safeSize,
-                callLogService.countLogs()
+                callLogService.countLogs(query)
         ));
     }
 

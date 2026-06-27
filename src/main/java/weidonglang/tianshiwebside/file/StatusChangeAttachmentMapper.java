@@ -68,6 +68,16 @@ public interface StatusChangeAttachmentMapper {
     AttachmentRow findById(@Param("attachmentId") Long attachmentId);
 
     @Select("""
+            select id, application_id as application_id, original_filename as original_filename,
+                   stored_path as stored_path, content_type as content_type, size_bytes as size_bytes,
+                   uploaded_at as uploaded_at
+            from status_change_attachment
+            where application_id = #{applicationId}
+              and id = #{attachmentId}
+            """)
+    AttachmentRow findByApplicationAndId(@Param("applicationId") Long applicationId, @Param("attachmentId") Long attachmentId);
+
+    @Select("""
             select att.id, att.application_id as application_id, att.original_filename as original_filename,
                    att.stored_path as stored_path, att.content_type as content_type, att.size_bytes as size_bytes,
                    att.uploaded_at as uploaded_at

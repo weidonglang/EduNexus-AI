@@ -28,17 +28,23 @@ public class AiChatService {
     }
 
     public AiChatResponse chat(String message, Principal principal) {
+        return chat(message, principal, null, null);
+    }
+
+    public AiChatResponse chat(String message, Principal principal, Long modelId, Long sessionId) {
         long start = System.nanoTime();
         moderationService.checkConfigured("AI_INPUT", message, operator(principal));
+        AiModelRecord selectedModel = modelRegistryService.requireEnabledChatModel(modelId);
         AiSearchDtos.SearchTestResponse search = maybeSearch(message, principal);
         return remoteClient.chat(message)
                 .map(response -> {
                     String modelName = response.modelName() == null || response.modelName().isBlank()
-                            ? modelRegistryService.defaultModelName("CHAT", response.serviceMode())
+                            ? selectedModel.modelName()
                             : response.modelName();
                     String answer = appendSearchNotice(response.answer(), search);
                     moderationService.checkConfigured("AI_OUTPUT", answer, operator(principal));
-                    callLogService.record(principal, "CHAT", message, modelName, elapsedMillis(start), true, search.message());
+                    callLogService.record(principal, "CHAT", message, modelName, response.serviceMode(),
+                            elapsedMillis(start), true, search.message(), sessionId, selectedModel.id());
                     return new AiChatResponse(
                             answer,
                             response.serviceMode(),
@@ -52,8 +58,9 @@ public class AiChatService {
                     String answer = "AI 聊天服务暂不可用，当前为本地兜底模式。这个聊天入口不作为教务依据；涉及教务规则请使用智能教务助手。";
                     String moderatedAnswer = appendSearchNotice(answer, search);
                     moderationService.checkConfigured("AI_OUTPUT", moderatedAnswer, operator(principal));
-                    callLogService.record(principal, "CHAT_FALLBACK", message, "local-fallback", elapsedMillis(start), true, "ai-service unavailable; " + search.message());
-                    return new AiChatResponse(moderatedAnswer, "local-fallback", "local-fallback",
+                    callLogService.record(principal, "CHAT_FALLBACK", message, selectedModel.modelName(), "local-fallback",
+                            elapsedMillis(start), true, "ai-service unavailable; " + search.message(), sessionId, selectedModel.id());
+                    return new AiChatResponse(moderatedAnswer, "local-fallback", selectedModel.modelName(),
                             search.searchUsed(), search.results(), search.message());
                 });
     }

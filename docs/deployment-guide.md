@@ -1,8 +1,8 @@
-# Academic-Nexus v1.3.0 Deployment Guide
+# Academic-Nexus v1.4.0 Deployment Guide
 
 Updated: 2026-06-27
 
-This guide covers the deployable v1.3.0 package, Docker Compose deployment, and the plain jar mode.
+This guide covers the deployable v1.4.0 package, Docker Compose deployment, and the plain jar mode.
 
 ## Requirements
 
@@ -26,13 +26,21 @@ Services:
 | Service | URL |
 | --- | --- |
 | Frontend dev server | `http://localhost:5173` |
-| Main backend | `http://localhost:8080` |
+| Main backend from host | `http://localhost:8088` |
+| Main backend inside Compose network | `http://academic-main:8080` |
 | AI service | `http://localhost:8090` |
 | Nacos console | `http://localhost:8848/nacos` |
 | MySQL | `localhost:3306` |
 | Redis | `localhost:6379` |
 
-Default Compose mode enables Nacos discovery and OpenFeign service-name calls between `academic-main` and `academic-ai-service`.
+Default Compose mode enables Nacos discovery and OpenFeign service-name calls between `academic-main` and `academic-ai-service`. The backend container still listens on `8080`, while the host maps it to `${MAIN_HOST_PORT:-8088}` to avoid collisions with local Java or search services.
+
+Override the host port if needed:
+
+```powershell
+$env:MAIN_HOST_PORT="18080"
+docker compose up -d --build
+```
 
 Stop services:
 
@@ -48,16 +56,16 @@ docker compose down -v
 
 ## Jar Package Deployment
 
-Build the v1.3.0 release zip:
+Build the v1.4.0 release zip:
 
 ```powershell
-.\scripts\build-release.ps1 -Version 1.3.0
+.\scripts\build-release.ps1 -Version 1.4.0
 ```
 
 Expected artifact:
 
 ```text
-release/Academic-Nexus-1.3.0.zip
+release/Academic-Nexus-1.4.0.zip
 ```
 
 The zip contains:
@@ -146,17 +154,19 @@ cd ..
 cd ai-service
 ..\mvnw.cmd test
 cd ..
-.\scripts\build-release.ps1 -Version 1.3.0
+.\scripts\health-check.ps1
+.\scripts\build-release.ps1 -Version 1.4.0
 ```
 
-Expected results for v1.3.0:
+Expected results for v1.4.0:
 
 - Compose config resolves successfully.
 - `npm audit` reports 0 vulnerabilities.
 - Frontend production build passes.
-- Main backend test suite passes, including the v1.3.0 HTTP regression tests for #39, #41, and #44.
+- Main backend test suite passes, including v1.3.0 and v1.4.0 HTTP regression tests.
 - AI service module builds successfully.
 - Release zip is generated under `release/`.
+- Health check Markdown and JSON reports are generated under `reports/`.
 
 ## Demo Accounts
 

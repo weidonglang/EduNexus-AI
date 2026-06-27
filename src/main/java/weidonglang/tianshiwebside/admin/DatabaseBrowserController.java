@@ -364,6 +364,124 @@ public class DatabaseBrowserController {
         return ApiResponse.success(dashboard);
     }
 
+    @GetMapping("/templates")
+    public ApiResponse<List<QueryTemplate>> templates() {
+        return ApiResponse.success(List.of(
+                new QueryTemplate("course-students", "查询某课程的所有选课学生", "课程选课", List.of("keyword")),
+                new QueryTemplate("student-grades", "查询某学生的成绩与绩点", "成绩考试", List.of("keyword")),
+                new QueryTemplate("offering-exam", "查询某教学班的考试安排", "成绩考试", List.of("keyword")),
+                new QueryTemplate("class-students", "查询某班级学生名单", "学生学籍", List.of("keyword")),
+                new QueryTemplate("term-selection-stats", "查询某学期选课人数统计", "课程选课", List.of("term")),
+                new QueryTemplate("ai-failed-logs", "查询 AI 调用失败记录", "AI", List.of())
+        ));
+    }
+
+    @GetMapping("/templates/{templateCode}/run")
+    public ApiResponse<PageResponse<Map<String, Object>>> runTemplate(
+            Principal principal,
+            @PathVariable String templateCode,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String term,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, Math.min(size, MAX_PREVIEW_SIZE));
+        TemplateQuery query = templateQuery(templateCode, normalizeBlank(keyword), normalizeBlank(term));
+        List<Object> pageArgs = new ArrayList<>(query.args());
+        pageArgs.add(safeSize);
+        pageArgs.add((safePage - 1) * safeSize);
+        List<Map<String, Object>> records = jdbcTemplate.queryForList(query.sql() + " limit ? offset ?", pageArgs.toArray())
+                .stream()
+                .map(this::maskSensitiveColumns)
+                .toList();
+        Long total = jdbcTemplate.queryForObject("select count(*) from (" + query.sql() + ") t", Long.class, query.args().toArray());
+        recordHistory(principal, "DB_BROWSER_TEMPLATE_QUERY", templateCode,
+                "keyword=" + normalizeBlank(keyword) + ", term=" + normalizeBlank(term));
+        return ApiResponse.success(new PageResponse<>(records, safePage, safeSize, total == null ? 0 : total));
+    }
+
+    @GetMapping(value = "/templates/{templateCode}/export.csv", produces = "text/csv;charset=UTF-8")
+    public ResponseEntity<String> exportTemplateCsv(
+            Principal principal,
+            @PathVariable String templateCode,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String term
+    ) {
+        TemplateQuery query = templateQuery(templateCode, normalizeBlank(keyword), normalizeBlank(term));
+        List<Map<String, Object>> records = jdbcTemplate.queryForList(query.sql() + " limit " + MAX_EXPORT_ROWS, query.args().toArray())
+                .stream()
+                .map(this::maskSensitiveColumns)
+                .toList();
+        List<String> headers = records.isEmpty() ? List.of("empty") : new ArrayList<>(records.get(0).keySet());
+        recordHistory(principal, "DB_BROWSER_TEMPLATE_EXPORT", templateCode,
+                "rows=" + records.size() + ", keyword=" + normalizeBlank(keyword) + ", term=" + normalizeBlank(term));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + templateCode + ".csv\"")
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(toCsv(records, headers));
+    }
+
+    private TemplateQuery templateQuery(String templateCode, String keyword, String term) {
+        String like = "%" + (keyword == null ? "" : keyword) + "%";
+        return switch (templateCode) {
+            case "course-students" -> new TemplateQuery("""
+                    select co.id as offering_id, c.code as course_code, c.name as course_name,
+                           co.teacher_name, s.student_no, u.display_name as student_name, s.class_name
+                    from course_selection cs
+                    join course_offering co on co.id = cs.offering_id
+                    join course c on c.id = co.course_id
+                    join student s on s.id = cs.student_id
+                    join sys_user u on u.id = s.user_id
+                    where c.code like ? or c.name like ? or co.teacher_name like ?
+                    order by co.id desc, s.student_no asc
+                    """, List.of(like, like, like));
+            case "student-grades" -> new TemplateQuery("""
+                    select s.student_no, u.display_name as student_name, c.code as course_code,
+                           c.name as course_name, g.score, g.grade_point, g.term
+                    from academic_grade g
+                    join student s on s.id = g.student_id
+                    join sys_user u on u.id = s.user_id
+                    join course c on c.id = g.course_id
+                    where s.student_no like ? or u.display_name like ?
+                    order by g.term desc, c.code asc
+                    """, List.of(like, like));
+            case "offering-exam" -> new TemplateQuery("""
+                    select e.id as exam_id, co.id as offering_id, c.code as course_code, c.name as course_name,
+                           co.teacher_name, e.exam_time, e.room, e.seat_no
+                    from exam_schedule e
+                    join course_offering co on co.id = e.course_offering_id
+                    join course c on c.id = co.course_id
+                    where concat('', co.id) like ? or c.code like ? or c.name like ?
+                    order by e.exam_time desc
+                    """, List.of(like, like, like));
+            case "class-students" -> new TemplateQuery("""
+                    select s.student_no, u.display_name as student_name, s.college, s.major, s.grade, s.class_name, s.status
+                    from student s
+                    join sys_user u on u.id = s.user_id
+                    where s.class_name like ? or s.major like ? or s.grade like ?
+                    order by s.class_name asc, s.student_no asc
+                    """, List.of(like, like, like));
+            case "term-selection-stats" -> new TemplateQuery("""
+                    select co.term, c.code as course_code, c.name as course_name, co.teacher_name,
+                           count(cs.id) as selected_count, max(co.capacity) as capacity
+                    from course_offering co
+                    join course c on c.id = co.course_id
+                    left join course_selection cs on cs.offering_id = co.id
+                    where co.term like ?
+                    group by co.term, c.code, c.name, co.teacher_name
+                    order by co.term desc, selected_count desc
+                    """, List.of("%" + (term == null ? "" : term) + "%"));
+            case "ai-failed-logs" -> new TemplateQuery("""
+                    select id, username, function_type, model_name, service_mode, level, error_message, trace_id, created_at
+                    from ai_call_log
+                    where success = false or level = 'ERROR'
+                    order by created_at desc
+                    """, List.of());
+            default -> throw new BusinessException(ErrorCode.NOT_FOUND, "查询模板不存在: " + templateCode);
+        };
+    }
+
     private List<TableInfo> loadTables() {
         return jdbcTemplate.query("""
                         select table_name, coalesce(table_comment, '') as table_comment, create_time, update_time
@@ -670,9 +788,15 @@ public class DatabaseBrowserController {
     public record NameValue(String name, Number value) {
     }
 
+    public record QueryTemplate(String code, String title, String module, List<String> parameters) {
+    }
+
     private record ColumnType(String columnName, String dataType) {
     }
 
     private record QueryParts(String whereClause, List<Object> args) {
+    }
+
+    private record TemplateQuery(String sql, List<Object> args) {
     }
 }

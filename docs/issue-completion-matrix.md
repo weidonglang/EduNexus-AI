@@ -1,8 +1,8 @@
-# Academic-Nexus v1.3.0 Issue Completion Matrix
+# Academic-Nexus Issue Completion Matrix
 
 Updated: 2026-06-27
 
-This matrix records the final v1.3.0 closure scope. v1.2 closed #4-#35; v1.3.0 focuses on #39-#59 bugfix, QA, release, and scope clarification work.
+This matrix records the closure scope through v1.4.0-final-polish. v1.2 closed #4-#35; v1.3.0 closed #39-#59; v1.4.0-final-polish focuses on #61-#74 final business closure and release polish.
 
 ## Final Verification
 
@@ -15,6 +15,7 @@ This matrix records the final v1.3.0 closure scope. v1.2 closed #4-#35; v1.3.0 f
 | AI service tests | `..\mvnw.cmd test` in `ai-service` passed, no test sources |
 | Spring Cloud config | Feign client, Nacos properties, and service-name wiring covered by tests and docs |
 | v1.3.0 HTTP regression | `QaClosureHttpRegressionTests` covers #39, #41, and #44 non-500, permission, and AI fallback paths |
+| v1.4.0 HTTP regression | `AiCallLogAdminRegressionTests`, `AiChatSessionRegressionTests`, `StatusChangeAttachmentAdminRegressionTests` passed |
 
 ## Issue Matrix
 
@@ -71,6 +72,20 @@ This matrix records the final v1.3.0 closure scope. v1.2 closed #4-#35; v1.3.0 f
 | #57 | CLOSED BY V1.3.0 | Existing student profile, information visibility and admin user/class paths are retained. |
 | #58 | CLOSED BY V1.3.0 OUT OF SCOPE | Internship/practice workflow has no complete existing entry point and is documented as outside v1.3.0. |
 | #59 | CLOSED BY V1.3.0 | Existing select/drop, Redis consistency and repair paths are accepted; waitlist/admin adjustment expansion is outside v1.3.0. |
+| #61 | CLOSED BY V1.4.0 | Docker host backend port defaults to `8088`, internal container port remains `8080`, `MAIN_HOST_PORT` override documented. |
+| #62 | CLOSED BY V1.4.0 | AI call logs support keyword, username, functionType, success, level, start/end time, serviceMode and traceId. |
+| #63 | CLOSED BY V1.4.0 | `course_grab_panel.py` defaults to backend API mode and supports configurable MySQL direct mode. |
+| #64 | CLOSED BY V1.4.0 | Admin status-change attachment list, preview and download endpoints added; role boundaries covered by regression tests. |
+| #65 | CLOSED BY V1.4.0 | AI chat sessions, messages, model selection, history persistence and model-aware logs added. |
+| #66 | CLOSED BY V1.4.0 | Batch task center, data archive records, database templates and CSV export added; excluded resource/backup modules documented. |
+| #67 | CLOSED BY V1.4.0 | Visible system naming uses “教学综合信息服务平台”. |
+| #68 | CLOSED BY V1.4.0 | Existing admin class/student CRUD, transfer and import flow retained and documented as covered. |
+| #69 | CLOSED BY V1.4.0 | Demo data covers multiple colleges, majors, classes, teachers, students, courses, offerings, selections, grades and exams. |
+| #70 | CLOSED BY V1.4.0 | State transition table documented in `docs/qa/v1.4-final-polish-report.md`. |
+| #71 | CLOSED BY V1.4.0 | Redis/DB/cache consistency checks documented and existing consistency page retained. |
+| #72 | CLOSED BY V1.4.0 | Audit traceability updated for AI, database templates, archive cleanup and attachment flows. |
+| #73 | CLOSED BY V1.4.0 | New pages use loading, empty and error states; existing global 401/403 handling retained. |
+| #74 | CLOSED BY V1.4.0 | Health-check scripts generate Markdown/JSON reports under `reports/`. |
 
 ## Remaining Release Discipline
 

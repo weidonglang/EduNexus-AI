@@ -22,7 +22,10 @@ import {
   databaseHistoryApi,
   databaseIndexesApi,
   databasePreviewApi,
+  databaseRunTemplateApi,
   databaseTablesApi,
+  databaseTemplateExportCsvUrl,
+  databaseTemplatesApi,
   databaseTreeApi,
   type DatabaseConnectionInfo,
   type DatabaseColumnInfo,
@@ -32,6 +35,7 @@ import {
   type DatabaseHistoryRow,
   type DatabaseIndexInfo,
   type DatabasePreviewRow,
+  type DatabaseQueryTemplate,
   type DatabaseTableInfo,
   type DatabaseTree,
 } from '@/api/databaseBrowser'
@@ -59,6 +63,15 @@ const indexes = ref<DatabaseIndexInfo[]>([])
 const foreignKeys = ref<DatabaseForeignKeyInfo[]>([])
 const historyRows = ref<DatabaseHistoryRow[]>([])
 const previewRows = ref<DatabasePreviewRow[]>([])
+const queryTemplates = ref<DatabaseQueryTemplate[]>([])
+const selectedTemplate = ref('')
+const templateKeyword = ref('')
+const templateTerm = ref('')
+const templateRows = ref<DatabasePreviewRow[]>([])
+const templatePage = ref(1)
+const templateSize = ref(20)
+const templateTotal = ref(0)
+const loadingTemplate = ref(false)
 const previewPage = ref(1)
 const previewSize = ref(20)
 const previewTotal = ref(0)
@@ -122,6 +135,11 @@ const previewColumns = computed(() => {
   return firstRow ? Object.keys(firstRow) : columns.value.map((item) => item.columnName)
 })
 
+const templateColumns = computed(() => {
+  const firstRow = templateRows.value[0]
+  return firstRow ? Object.keys(firstRow) : []
+})
+
 const sqlStatusOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'item' },
   legend: { bottom: 0 },
@@ -154,6 +172,7 @@ onMounted(async () => {
     loadConnection(),
     loadDashboard(),
     loadTables(),
+    loadTemplates(),
     loadTree(),
     loadErGraph(),
     loadHistory(),
@@ -162,6 +181,13 @@ onMounted(async () => {
 
 async function loadConnection() {
   connection.value = (await databaseConnectionApi()).data
+}
+
+async function loadTemplates() {
+  queryTemplates.value = (await databaseTemplatesApi()).data
+  if (!selectedTemplate.value && queryTemplates.value.length) {
+    selectedTemplate.value = queryTemplates.value[0].code
+  }
 }
 
 async function loadDashboard() {
@@ -258,9 +284,32 @@ async function loadPreview() {
   previewTotal.value = response.data.total
 }
 
+async function runTemplate() {
+  if (!selectedTemplate.value) return
+
+  loadingTemplate.value = true
+  try {
+    const response = await databaseRunTemplateApi(selectedTemplate.value, {
+      keyword: templateKeyword.value.trim() || undefined,
+      term: templateTerm.value.trim() || undefined,
+      page: templatePage.value,
+      size: templateSize.value,
+    })
+    templateRows.value = response.data.records
+    templateTotal.value = response.data.total
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '查询模板执行失败'))
+    templateRows.value = []
+    templateTotal.value = 0
+  } finally {
+    loadingTemplate.value = false
+  }
+}
+
 async function refreshAll() {
   await loadDashboard()
   await loadTables()
+  await loadTemplates()
   await loadTree()
   await loadErGraph()
   await loadHistory()
@@ -268,6 +317,15 @@ async function refreshAll() {
   if (selectedTable.value) {
     await loadDetail()
   }
+}
+
+function exportTemplateCsv() {
+  if (!selectedTemplate.value) return
+
+  window.open(databaseTemplateExportCsvUrl(selectedTemplate.value, {
+    keyword: templateKeyword.value.trim() || undefined,
+    term: templateTerm.value.trim() || undefined,
+  }), '_blank')
 }
 
 async function loadHistory() {
@@ -699,6 +757,75 @@ function resolveErrorMessage(error: unknown, fallback: string) {
           />
 
           <QueryResultChart :rows="previewRows" />
+        </el-tab-pane>
+
+        <el-tab-pane label="查询模板" name="templates">
+          <div class="admin-actions preview-actions">
+            <el-select
+                v-model="selectedTemplate"
+                class="template-select"
+                placeholder="选择只读模板"
+                @change="() => { templatePage = 1; runTemplate() }"
+            >
+              <el-option
+                  v-for="item in queryTemplates"
+                  :key="item.code"
+                  :label="`${item.title} · ${item.module}`"
+                  :value="item.code"
+              />
+            </el-select>
+            <el-input
+                v-model="templateKeyword"
+                class="keyword-input"
+                clearable
+                placeholder="课程/学生/班级关键词"
+                @keyup.enter="() => { templatePage = 1; runTemplate() }"
+            />
+            <el-input
+                v-model="templateTerm"
+                class="small-input"
+                clearable
+                placeholder="学期或日期"
+                @keyup.enter="() => { templatePage = 1; runTemplate() }"
+            />
+            <el-button type="primary" :loading="loadingTemplate" @click="() => { templatePage = 1; runTemplate() }">
+              执行模板
+            </el-button>
+            <el-button @click="exportTemplateCsv">
+              导出CSV
+            </el-button>
+          </div>
+
+          <el-table
+              v-loading="loadingTemplate"
+              :data="templateRows"
+              empty-text="请选择模板并执行查询"
+              height="420"
+          >
+            <el-table-column
+                v-for="column in templateColumns"
+                :key="column"
+                :prop="column"
+                :label="column"
+                min-width="140"
+                show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ formatValue(row[column]) }}
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-pagination
+              v-model:current-page="templatePage"
+              v-model:page-size="templateSize"
+              class="table-pagination"
+              layout="total, sizes, prev, pager, next"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="templateTotal"
+              @current-change="runTemplate"
+              @size-change="runTemplate"
+          />
         </el-tab-pane>
 
         <el-tab-pane label="ER关系" name="er">

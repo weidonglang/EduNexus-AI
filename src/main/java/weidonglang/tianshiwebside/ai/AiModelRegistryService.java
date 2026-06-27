@@ -49,6 +49,54 @@ public class AiModelRegistryService {
                 ));
     }
 
+    public List<AiModelRecord> enabledModels(String modelType) {
+        return jdbcTemplate.query("""
+                        select id, name, provider, model_name, base_url, api_key_ref, model_type, purpose,
+                               enabled, is_default, description, last_status, last_latency_ms, last_error,
+                               last_checked_at, created_at, updated_at
+                        from ai_model_registry
+                        where enabled = true
+                          and model_type = ?
+                        order by is_default desc, id asc
+                        """,
+                (rs, rowNum) -> new AiModelRecord(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getString("provider"),
+                        rs.getString("model_name"),
+                        rs.getString("base_url"),
+                        rs.getString("api_key_ref"),
+                        rs.getString("model_type"),
+                        rs.getString("purpose"),
+                        rs.getBoolean("enabled"),
+                        rs.getBoolean("is_default"),
+                        rs.getString("description"),
+                        rs.getString("last_status"),
+                        nullableLong(rs.getObject("last_latency_ms")),
+                        rs.getString("last_error"),
+                        instant(rs.getTimestamp("last_checked_at")),
+                        rs.getTimestamp("created_at").toInstant(),
+                        rs.getTimestamp("updated_at").toInstant()
+                ),
+                normalize(modelType));
+    }
+
+    public AiModelRecord defaultEnabledModel(String modelType) {
+        List<AiModelRecord> rows = enabledModels(modelType);
+        if (rows.isEmpty()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "没有可用的 " + normalize(modelType) + " 模型");
+        }
+        return rows.get(0);
+    }
+
+    public AiModelRecord requireEnabledChatModel(Long id) {
+        AiModelRecord model = id == null ? defaultEnabledModel("CHAT") : require(id);
+        if (!model.enabled() || !"CHAT".equals(model.modelType())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "只能选择已启用的 CHAT 模型");
+        }
+        return model;
+    }
+
     public AiModelRecord create(AiModelRequest request) {
         Instant now = Instant.now();
         jdbcTemplate.update("""

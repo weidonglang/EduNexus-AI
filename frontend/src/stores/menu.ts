@@ -119,6 +119,8 @@ function fallbackMenus(roles: string[]): MenuItem[] {
       item('admin-notices', '通知公告', '/admin/notices', 'Megaphone'),
       item('admin-files', '文件管理', '/admin/files', 'FolderOpen'),
       item('admin-audit-logs', '操作审计', '/admin/audit-logs', 'ScrollText'),
+      item('admin-batch-tasks', '批量任务中心', '/admin/batch-tasks', 'ListChecks'),
+      item('admin-data-archive', '数据归档清理', '/admin/data-archive', 'Archive'),
       item('admin-redis-monitor', 'Redis状态监控', '/admin/redis-monitor', 'DatabaseZap'),
       item('admin-load-test-reports', '压测历史报告', '/admin/load-test-reports', 'ChartColumnBig'),
       item('admin-database-browser', '数据库只读浏览', '/admin/database-browser', 'TableProperties'),

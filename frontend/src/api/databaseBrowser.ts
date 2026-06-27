@@ -109,6 +109,13 @@ export interface DatabaseDashboardData {
   importQuality: DatabaseNameValue[]
 }
 
+export interface DatabaseQueryTemplate {
+  code: string
+  title: string
+  module: string
+  parameters: string[]
+}
+
 export function databaseConnectionApi() {
   return http.get<never, ApiResponse<DatabaseConnectionInfo>>('/admin/database-browser/connection')
 }
@@ -158,4 +165,23 @@ export function databaseExportCsvUrl(tableName: string, params?: { keyword?: str
     if (value) search.set(key, value)
   })
   return `/api/admin/database-browser/tables/${encodeURIComponent(tableName)}/export.csv${search.size ? `?${search}` : ''}`
+}
+
+export function databaseTemplatesApi() {
+  return http.get<never, ApiResponse<DatabaseQueryTemplate[]>>('/admin/database-browser/templates')
+}
+
+export function databaseRunTemplateApi(templateCode: string, params?: { keyword?: string; term?: string; page?: number; size?: number }) {
+  return http.get<never, ApiResponse<PageResponse<DatabasePreviewRow>>>(
+    `/admin/database-browser/templates/${templateCode}/run`,
+    { params },
+  )
+}
+
+export function databaseTemplateExportCsvUrl(templateCode: string, params?: { keyword?: string; term?: string }) {
+  const search = new URLSearchParams()
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value) search.set(key, value)
+  })
+  return `/api/admin/database-browser/templates/${encodeURIComponent(templateCode)}/export.csv${search.size ? `?${search}` : ''}`
 }

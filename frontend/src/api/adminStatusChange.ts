@@ -25,6 +25,17 @@ export interface ReviewStatusChangePayload {
   comment: string
 }
 
+export interface AdminStatusChangeAttachment {
+  id: number
+  applicationId: number
+  originalFilename: string
+  contentType?: string
+  fileTypeLabel: string
+  sizeBytes: number
+  uploadedAt: string
+  previewable: boolean
+}
+
 export function adminStatusChangesApi(params?: { status?: ApplicationStatus | ''; keyword?: string; page?: number; size?: number }) {
   return http.get<never, ApiResponse<PageResponse<AdminStatusChangeApplication>>>('/admin/status-changes', {
     params,
@@ -36,4 +47,16 @@ export function reviewStatusChangeApi(applicationId: number, payload: ReviewStat
     `/admin/status-changes/${applicationId}/review`,
     payload,
   )
+}
+
+export function adminStatusChangeAttachmentsApi(applicationId: number) {
+  return http.get<never, ApiResponse<AdminStatusChangeAttachment[]>>(`/admin/status-changes/${applicationId}/attachments`)
+}
+
+export function adminStatusChangeAttachmentPreviewUrl(applicationId: number, attachmentId: number) {
+  return `/api/admin/status-changes/${applicationId}/attachments/${attachmentId}/preview`
+}
+
+export function adminStatusChangeAttachmentDownloadUrl(applicationId: number, attachmentId: number) {
+  return `/api/admin/status-changes/${applicationId}/attachments/${attachmentId}/download`
 }

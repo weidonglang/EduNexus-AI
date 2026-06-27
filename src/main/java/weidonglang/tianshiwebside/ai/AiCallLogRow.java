@@ -9,9 +9,14 @@ public record AiCallLogRow(
         String functionType,
         String promptSummary,
         String modelName,
+        String serviceMode,
         Long durationMs,
         Boolean success,
+        String level,
         String errorMessage,
+        String traceId,
+        Long sessionId,
+        Long modelId,
         Instant createdAt
 ) {
 }

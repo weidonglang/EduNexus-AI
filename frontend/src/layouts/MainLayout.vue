@@ -46,7 +46,7 @@ function hasChildren(item: MenuItem) {
         <div class="zf-logo">
           <UserRound :size="24" />
         </div>
-        <span>天津天狮学院教学综合信息服务平台</span>
+        <span>教学综合信息服务平台</span>
       </div>
       <div class="zf-user">
         <span>{{ auth.user?.displayName ?? '未登录用户' }}</span>
@@ -78,7 +78,7 @@ function hasChildren(item: MenuItem) {
     </main>
 
     <footer class="zf-footer">
-      版权所有 Copyright 2004-2026 魏语石　天津天狮学院教学综合信息服务平台　版本 V-9.0
+      版权所有 Copyright 2004-2026 魏语石　教学综合信息服务平台　版本 V-9.0
     </footer>
   </div>
 </template>

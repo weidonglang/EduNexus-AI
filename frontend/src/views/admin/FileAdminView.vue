@@ -66,6 +66,24 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString('zh-CN')
 }
 
+function fileTypeLabel(contentType?: string) {
+  if (contentType === 'application/pdf') return 'PDF'
+  if (contentType === 'image/jpeg' || contentType === 'image/png') return '图片'
+  if (
+    contentType === 'application/msword' ||
+    contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ) {
+    return 'Word 文档'
+  }
+  if (
+    contentType === 'application/vnd.ms-excel' ||
+    contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ) {
+    return 'Excel 表格'
+  }
+  return '其他文件'
+}
+
 function resolveErrorMessage(error: unknown, fallback: string) {
   if (
     typeof error === 'object' &&
@@ -103,7 +121,9 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-table-column label="大小" width="100">
         <template #default="{ row }">{{ formatSize(row.sizeBytes) }}</template>
       </el-table-column>
-      <el-table-column prop="contentType" label="类型" width="150" />
+      <el-table-column label="类型" width="110">
+        <template #default="{ row }">{{ row.fileTypeLabel || fileTypeLabel(row.contentType) }}</template>
+      </el-table-column>
       <el-table-column label="上传时间" width="180">
         <template #default="{ row }">{{ formatDateTime(row.uploadedAt) }}</template>
       </el-table-column>

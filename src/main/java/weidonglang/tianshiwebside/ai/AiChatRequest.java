@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 public record AiChatRequest(
         @NotBlank
         @Size(max = 1000)
-        String message
+        String message,
+        Long modelId
 ) {
 }

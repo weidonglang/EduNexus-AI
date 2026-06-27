@@ -4,7 +4,11 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   adminStatusChangesApi,
+  adminStatusChangeAttachmentsApi,
+  adminStatusChangeAttachmentDownloadUrl,
+  adminStatusChangeAttachmentPreviewUrl,
   reviewStatusChangeApi,
+  type AdminStatusChangeAttachment,
   type AdminStatusChangeApplication,
   type ReviewDecision,
 } from '@/api/adminStatusChange'
@@ -13,7 +17,10 @@ import type { ApplicationStatus, StatusChangeType } from '@/api/student'
 const loading = ref(false)
 const saving = ref(false)
 const reviewDialogVisible = ref(false)
+const attachmentDialogVisible = ref(false)
+const attachmentLoading = ref(false)
 const currentApplication = ref<AdminStatusChangeApplication | null>(null)
+const attachments = ref<AdminStatusChangeAttachment[]>([])
 const records = ref<AdminStatusChangeApplication[]>([])
 const page = ref(1)
 const size = ref(10)
@@ -117,6 +124,27 @@ async function submitReview() {
   }
 }
 
+async function openAttachmentDialog(row: AdminStatusChangeApplication) {
+  currentApplication.value = row
+  attachmentDialogVisible.value = true
+  attachmentLoading.value = true
+  try {
+    attachments.value = (await adminStatusChangeAttachmentsApi(row.id)).data
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '附件列表加载失败'))
+  } finally {
+    attachmentLoading.value = false
+  }
+}
+
+function previewAttachment(row: AdminStatusChangeAttachment) {
+  window.open(adminStatusChangeAttachmentPreviewUrl(row.applicationId, row.id), '_blank')
+}
+
+function downloadAttachment(row: AdminStatusChangeAttachment) {
+  window.open(adminStatusChangeAttachmentDownloadUrl(row.applicationId, row.id), '_blank')
+}
+
 function canReview(row: AdminStatusChangeApplication) {
   return row.status === 'SUBMITTED' || row.status === 'UNDER_REVIEW'
 }
@@ -126,6 +154,12 @@ function formatDateTime(value?: string) {
     return '-'
   }
   return new Date(value).toLocaleString('zh-CN')
+}
+
+function formatFileSize(value?: number) {
+  if (!value) return '-'
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(value / 1024))} KB`
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -196,6 +230,11 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-table-column label="审核意见" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ row.reviewComment || '-' }}</template>
       </el-table-column>
+      <el-table-column label="材料" width="90">
+        <template #default="{ row }">
+          <el-button type="primary" link @click="openAttachmentDialog(row)">附件</el-button>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link :disabled="!canReview(row)" @click="openReviewDialog(row, 'APPROVE')">
@@ -237,5 +276,24 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <el-button @click="reviewDialogVisible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="submitReview">确认</el-button>
     </template>
+  </el-dialog>
+
+  <el-dialog v-model="attachmentDialogVisible" title="申请材料" width="760px">
+    <el-table v-loading="attachmentLoading" :data="attachments" empty-text="暂无附件材料">
+      <el-table-column prop="originalFilename" label="文件名" min-width="220" show-overflow-tooltip />
+      <el-table-column prop="fileTypeLabel" label="类型" width="110" />
+      <el-table-column label="大小" width="100">
+        <template #default="{ row }">{{ formatFileSize(row.sizeBytes) }}</template>
+      </el-table-column>
+      <el-table-column label="上传时间" width="180">
+        <template #default="{ row }">{{ formatDateTime(row.uploadedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="150" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link :disabled="!row.previewable" @click="previewAttachment(row)">预览</el-button>
+          <el-button type="primary" link @click="downloadAttachment(row)">下载</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
   </el-dialog>
 </template>

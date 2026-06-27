@@ -2,6 +2,23 @@
 
 本文档说明如何启动教学综合信息服务平台的后端、前端、Redis 和压测工具。
 
+## 端口说明
+
+| 场景 | 默认地址 |
+| --- | --- |
+| 本地 IDEA 后端开发 | `http://localhost:8080` |
+| Docker Compose 演示后端 | `http://localhost:8088` |
+| 前端开发服务 | `http://localhost:5173` |
+| AI Service | `http://localhost:8090` |
+| Nacos 控制台 | `http://localhost:8848/nacos` |
+
+Docker 模式下，`academic-main` 容器内部仍监听 `8080`，前端容器仍访问 `academic-main:8080`。宿主机默认映射为 `8088`，如与本机服务冲突可覆盖：
+
+```powershell
+$env:MAIN_HOST_PORT="18080"
+docker compose up -d --build
+```
+
 ## 推荐方式：MySQL + demo profile
 
 适合正式演示。使用 MySQL 数据库，并自动初始化学院、专业、班级、学生、教师、管理员、课程、成绩、考试、公告等演示数据。
@@ -188,6 +205,32 @@ $env:PREVIEW_PORT="8092"
 6. 开始压测。
 7. 查看 `reports/` 目录下生成的 HTML 报告。
 
+课程刷新支持两种模式：
+
+- 后端 API 模式：默认推荐，压测面板通过 `GET /api/admin/course-offerings` 刷新课程。
+- MySQL 直连模式：高级排查使用，可设置 `MYSQL_EXE`、`DB_HOST`、`DB_PORT`、`DB_USERNAME`、`DB_PASSWORD`、`DB_DATABASE`。
+
+如果本机没有把 `mysql.exe` 加入 PATH，可以设置：
+
+```powershell
+$env:MYSQL_EXE="C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
+```
+
+## 健康巡检
+
+演示前可以生成 Markdown 和 JSON 巡检报告：
+
+```powershell
+.\scripts\health-check.ps1
+```
+
+报告输出到：
+
+```text
+reports/health-check-YYYYMMDD-HHmmss.md
+reports/health-check-YYYYMMDD-HHmmss.json
+```
+
 ## 一键脚本
 
 开发机本地启动后端和前端：
@@ -209,18 +252,18 @@ $env:PREVIEW_PORT="8092"
 生成可分发的 jar 和 zip：
 
 ```powershell
-.\scripts\build-release.ps1 -Version 1.3.0
+.\scripts\build-release.ps1 -Version 1.4.0
 ```
 
 打包产物位于：
 
 ```text
-release/Academic-Nexus-1.3.0.zip
+release/Academic-Nexus-1.4.0.zip
 ```
 
 压缩包内包含主系统 `academic-nexus-web.jar`、AI 服务 `academic-nexus-ai-service.jar`、`docker-compose.yml`、`.env.example`、`start-release.ps1` 和 `start-release.bat`。部署机器需要 Java 17；MySQL、Redis、Nacos 可以用压缩包里的 Docker Compose 启动。如需真实 Ollama 模型，把 `.env` 中的 `OLLAMA_ENABLED` 改为 `true` 并确认模型已经拉取。
 
-## v1.3.0 Docker Compose 全栈启动
+## v1.4.0 Docker Compose 全栈启动
 
 如果 Docker Desktop 已启动，可以直接运行：
 
@@ -232,7 +275,7 @@ docker compose up -d --build
 
 ```text
 前端：http://localhost:5173
-后端：http://localhost:8080
+后端：http://localhost:8088
 Nacos：http://localhost:8848/nacos
 ```
 
