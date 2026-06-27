@@ -1,6 +1,7 @@
 package weidonglang.tianshiwebside.ai;
 
 import org.springframework.stereotype.Service;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 
 import java.security.Principal;
 
@@ -10,30 +11,36 @@ public class AiChatService {
     private final AiCallLogService callLogService;
     private final AiModelRegistryService modelRegistryService;
     private final AiSearchService searchService;
+    private final ContentModerationService moderationService;
 
     public AiChatService(
             AiRemoteClient remoteClient,
             AiCallLogService callLogService,
             AiModelRegistryService modelRegistryService,
-            AiSearchService searchService
+            AiSearchService searchService,
+            ContentModerationService moderationService
     ) {
         this.remoteClient = remoteClient;
         this.callLogService = callLogService;
         this.modelRegistryService = modelRegistryService;
         this.searchService = searchService;
+        this.moderationService = moderationService;
     }
 
     public AiChatResponse chat(String message, Principal principal) {
         long start = System.nanoTime();
+        moderationService.checkConfigured("AI_INPUT", message, operator(principal));
         AiSearchDtos.SearchTestResponse search = maybeSearch(message, principal);
         return remoteClient.chat(message)
                 .map(response -> {
                     String modelName = response.modelName() == null || response.modelName().isBlank()
                             ? modelRegistryService.defaultModelName("CHAT", response.serviceMode())
                             : response.modelName();
+                    String answer = appendSearchNotice(response.answer(), search);
+                    moderationService.checkConfigured("AI_OUTPUT", answer, operator(principal));
                     callLogService.record(principal, "CHAT", message, modelName, elapsedMillis(start), true, search.message());
                     return new AiChatResponse(
-                            appendSearchNotice(response.answer(), search),
+                            answer,
                             response.serviceMode(),
                             modelName,
                             search.searchUsed(),
@@ -43,8 +50,10 @@ public class AiChatService {
                 })
                 .orElseGet(() -> {
                     String answer = "AI 聊天服务暂不可用，当前为本地兜底模式。这个聊天入口不作为教务依据；涉及教务规则请使用智能教务助手。";
+                    String moderatedAnswer = appendSearchNotice(answer, search);
+                    moderationService.checkConfigured("AI_OUTPUT", moderatedAnswer, operator(principal));
                     callLogService.record(principal, "CHAT_FALLBACK", message, "local-fallback", elapsedMillis(start), true, "ai-service unavailable; " + search.message());
-                    return new AiChatResponse(appendSearchNotice(answer, search), "local-fallback", "local-fallback",
+                    return new AiChatResponse(moderatedAnswer, "local-fallback", "local-fallback",
                             search.searchUsed(), search.results(), search.message());
                 });
     }
@@ -70,5 +79,9 @@ public class AiChatService {
 
     private long elapsedMillis(long startNanos) {
         return java.time.Duration.ofNanos(System.nanoTime() - startNanos).toMillis();
+    }
+
+    private String operator(Principal principal) {
+        return principal == null ? "anonymous" : principal.getName();
     }
 }

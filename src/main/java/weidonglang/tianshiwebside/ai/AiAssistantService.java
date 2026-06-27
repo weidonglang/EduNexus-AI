@@ -2,6 +2,7 @@ package weidonglang.tianshiwebside.ai;
 
 import org.springframework.stereotype.Service;
 import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 
 import java.security.Principal;
 import java.util.List;
@@ -12,42 +13,59 @@ public class AiAssistantService {
     private final AiRemoteClient remoteClient;
     private final AiCallLogService callLogService;
     private final AiModelRegistryService modelRegistryService;
+    private final ContentModerationService moderationService;
 
     public AiAssistantService(
             RagKnowledgeService knowledgeService,
             AiRemoteClient remoteClient,
             AiCallLogService callLogService,
-            AiModelRegistryService modelRegistryService
+            AiModelRegistryService modelRegistryService,
+            ContentModerationService moderationService
     ) {
         this.knowledgeService = knowledgeService;
         this.remoteClient = remoteClient;
         this.callLogService = callLogService;
         this.modelRegistryService = modelRegistryService;
+        this.moderationService = moderationService;
     }
 
     public AiAssistantResponse ask(String question, Principal principal) {
         long start = System.nanoTime();
+        moderationService.checkConfigured("AI_INPUT", question, operator(principal));
         Refusal refusal = refusal(question);
         if (refusal != null) {
+            moderateOutput(refusal.answer(), principal);
             callLogService.record(principal, "RAG_REFUSAL", question, "policy", elapsedMillis(start), true, refusal.reason());
             return response(refusal.answer(), List.of(), "policy", "REFUSAL", refusal.reason(), elapsedMillis(start));
         }
         List<AiSourceDocument> sources = knowledgeService.retrieve(question, principal);
         if (sources.isEmpty() || sources.stream().mapToDouble(AiSourceDocument::score).max().orElse(0) < 2.0) {
             String answer = "当前系统未检索到足够的教务依据，建议联系教务管理员或查看最新通知公告。";
+            moderateOutput(answer, principal);
             callLogService.record(principal, "RAG_NO_EVIDENCE", question, "retrieval", elapsedMillis(start), true, "no matched source");
             return response(answer, sources, "retrieval", "NO_ANSWER", "知识库没有命中足够依据", elapsedMillis(start));
         }
         return remoteClient.ask(question, sources)
                 .map(response -> {
                     String modelName = modelRegistryService.defaultModelName("RAG", response.modelName());
+                    moderateOutput(response.answer(), principal);
                     callLogService.record(principal, "RAG", question, modelName, elapsedMillis(start), true, null);
                     return response(response.answer(), sources, response.serviceMode(), "ANSWER", null, elapsedMillis(start));
                 })
                 .orElseGet(() -> {
+                    String answer = buildFallbackAnswer(question, sources);
+                    moderateOutput(answer, principal);
                     callLogService.record(principal, "RAG_FALLBACK", question, "local-fallback", elapsedMillis(start), true, "ai-service unavailable");
-                    return response(buildFallbackAnswer(question, sources), sources, "local-fallback", "ANSWER", null, elapsedMillis(start));
+                    return response(answer, sources, "local-fallback", "ANSWER", null, elapsedMillis(start));
                 });
+    }
+
+    private void moderateOutput(String answer, Principal principal) {
+        moderationService.checkConfigured("AI_OUTPUT", answer, operator(principal));
+    }
+
+    private String operator(Principal principal) {
+        return principal == null ? "anonymous" : principal.getName();
     }
 
     private AiAssistantResponse response(

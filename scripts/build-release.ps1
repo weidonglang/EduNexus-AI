@@ -104,7 +104,7 @@ NACOS_DISCOVERY_ENABLED=false
 NACOS_REGISTER_ENABLED=false
 NACOS_ADDR=127.0.0.1:8848
 
-DB_URL=jdbc:mysql://localhost:3306/tianshiwebside?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+DB_URL=jdbc:mysql://localhost:3306/tianshiwebside?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
 DB_USERNAME=root
 DB_PASSWORD=123123
 

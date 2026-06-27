@@ -131,6 +131,53 @@ public interface TeacherMapper {
                                                          @Param("offeringId") Long offeringId);
 
     @Select("""
+            select
+              ac.id as class_id,
+              ac.college as college,
+              ac.major as major,
+              ac.grade as grade,
+              ac.class_name as class_name,
+              ac.advisor as advisor,
+              count(s.id) as student_count
+            from academic_class ac
+            join sys_user u on u.id = ac.homeroom_teacher_user_id
+            left join student s on s.class_name = ac.class_name
+            where u.username = #{username}
+            group by ac.id, ac.college, ac.major, ac.grade, ac.class_name, ac.advisor
+            order by ac.grade desc, ac.class_name asc
+            """)
+    List<HomeroomClassRow> findHomeroomClassesByUsername(@Param("username") String username);
+
+    @Select("""
+            select count(*)
+            from academic_class ac
+            join sys_user u on u.id = ac.homeroom_teacher_user_id
+            where ac.id = #{classId}
+              and u.username = #{username}
+            """)
+    int countOwnedHomeroomClass(@Param("username") String username, @Param("classId") Long classId);
+
+    @Select("""
+            select
+              s.student_no as student_no,
+              u.display_name as student_name,
+              s.college as college,
+              s.major as major,
+              s.class_name as class_name,
+              s.grade as grade,
+              s.status as status
+            from academic_class ac
+            join sys_user teacher on teacher.id = ac.homeroom_teacher_user_id
+            join student s on s.class_name = ac.class_name
+            join sys_user u on u.id = s.user_id
+            where ac.id = #{classId}
+              and teacher.username = #{username}
+            order by s.student_no asc
+            """)
+    List<HomeroomClassStudentRow> findHomeroomClassStudents(@Param("username") String username,
+                                                            @Param("classId") Long classId);
+
+    @Select("""
             select s.id
             from course_selection cs
             join student s on s.id = cs.student_id
@@ -312,5 +359,13 @@ public interface TeacherMapper {
 
     record TeacherOfferingStudentRow(String studentNo, String studentName, String className, String major,
                                      java.time.Instant selectedAt, String gradeStatus) {
+    }
+
+    record HomeroomClassRow(Long classId, String college, String major, String grade, String className,
+                            String advisor, Long studentCount) {
+    }
+
+    record HomeroomClassStudentRow(String studentNo, String studentName, String college, String major,
+                                   String className, String grade, String status) {
     }
 }

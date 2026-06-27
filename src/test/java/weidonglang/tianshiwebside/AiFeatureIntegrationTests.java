@@ -11,6 +11,7 @@ import weidonglang.tianshiwebside.ai.AiModelRegistryService;
 import weidonglang.tianshiwebside.ai.AiSearchService;
 import weidonglang.tianshiwebside.ai.NaturalSqlService;
 import weidonglang.tianshiwebside.common.error.BusinessException;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -32,6 +33,8 @@ class AiFeatureIntegrationTests {
     private AiModelRegistryService modelRegistryService;
     @Autowired
     private AiSearchService searchService;
+    @Autowired
+    private ContentModerationService moderationService;
 
     @Test
     void ragRefusesOffTopicAndPermissionOutOfScopeQuestions() {
@@ -122,6 +125,24 @@ class AiFeatureIntegrationTests {
         assertThat(response.allowed()).isFalse();
         assertThat(response.message()).contains("敏感");
         assertThat(blocked).isNotNull().isPositive();
+    }
+
+    @Test
+    void aiSafetyConfigCanBlockConfiguredScenes() {
+        var config = moderationService.updateSafetyConfig("ROUND1_TEST", true, "block", "测试策略");
+
+        assertThat(config.scene()).isEqualTo("ROUND1_TEST");
+        assertThat(config.strategy()).isEqualTo("block");
+        assertThatThrownBy(() -> moderationService.checkConfigured("ROUND1_TEST", "这里包含示例敏感词A", "admin_ai"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("拦截");
+        Integer hitCount = jdbcTemplate.queryForObject("""
+                select count(*)
+                from content_moderation_log
+                where scene = 'ROUND1_TEST'
+                  and action = 'BLOCK'
+                """, Integer.class);
+        assertThat(hitCount).isNotNull().isPositive();
     }
 
     private void seedStudent(String username) {

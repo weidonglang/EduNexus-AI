@@ -5,10 +5,12 @@ import jakarta.validation.constraints.Size;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.error.ErrorCode;
+import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 import weidonglang.tianshiwebside.course.grab.CourseGrabCommand;
 import weidonglang.tianshiwebside.course.grab.CourseGrabPort;
 import weidonglang.tianshiwebside.course.grab.CourseGrabResult;
@@ -30,17 +32,20 @@ public class CourseSelectionController {
     private final CourseSelectionReadMapper selectionReadMapper;
     private final CourseSelectionWriteMapper selectionWriteMapper;
     private final QueryCacheService queryCacheService;
+    private final AuditLogService auditLogService;
 
     public CourseSelectionController(
             CourseGrabPort courseGrabPort,
             CourseSelectionReadMapper selectionReadMapper,
             CourseSelectionWriteMapper selectionWriteMapper,
-            QueryCacheService queryCacheService
+            QueryCacheService queryCacheService,
+            AuditLogService auditLogService
     ) {
         this.courseGrabPort = courseGrabPort;
         this.selectionReadMapper = selectionReadMapper;
         this.selectionWriteMapper = selectionWriteMapper;
         this.queryCacheService = queryCacheService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping("/offerings")
@@ -143,6 +148,8 @@ public class CourseSelectionController {
         if (offeringId != null) {
             queryCacheService.evict("selection:offering:" + offeringId + ":remaining");
         }
+        auditLogService.record(authentication.getName(), "DROP_COURSE", "COURSE_SELECTION", selectionId,
+                "offeringId=" + offeringId, TraceIdHolder.get());
         evictCourseFlowCaches(authenticatedUsername(authentication));
         return ApiResponse.success();
     }
@@ -194,7 +201,10 @@ public class CourseSelectionController {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        return ApiResponse.success(courseGrabPort.grab(new CourseGrabCommand(authentication.getName(), offeringId, null)));
+        CourseGrabResult result = courseGrabPort.grab(new CourseGrabCommand(authentication.getName(), offeringId, null));
+        auditLogService.record(authentication.getName(), "SELECT_COURSE", "COURSE_SELECTION", result.selectionId(),
+                "offeringId=" + result.offeringId(), TraceIdHolder.get());
+        return ApiResponse.success(result);
     }
 
     @PostMapping("/grab")
@@ -210,11 +220,14 @@ public class CourseSelectionController {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        ApiResponse<CourseGrabResult> response = ApiResponse.success(courseGrabPort.grab(new CourseGrabCommand(
+        CourseGrabResult result = courseGrabPort.grab(new CourseGrabCommand(
                 authentication.getName(),
                 request.offeringId(),
                 request.requestId()
-        )));
+        ));
+        auditLogService.record(authentication.getName(), "GRAB_COURSE", "COURSE_SELECTION", result.selectionId(),
+                "offeringId=" + result.offeringId() + ", requestId=" + request.requestId(), TraceIdHolder.get());
+        ApiResponse<CourseGrabResult> response = ApiResponse.success(result);
         evictCourseFlowCaches(authentication.getName());
         return response;
     }

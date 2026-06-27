@@ -18,6 +18,8 @@ import weidonglang.tianshiwebside.common.error.ErrorCode;
 import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 import weidonglang.tianshiwebside.evaluation.mapper.EvaluationSummaryRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper;
+import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.HomeroomClassRow;
+import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.HomeroomClassStudentRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherGradeEntryRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherOfferingRow;
 import weidonglang.tianshiwebside.teacher.mapper.TeacherMapper.TeacherOfferingStudentRow;
@@ -123,6 +125,33 @@ public class TeacherController {
         ));
     }
 
+    @GetMapping("/classes")
+    public ApiResponse<List<HomeroomClassRow>> homeroomClasses(Authentication authentication) {
+        String username = authenticatedUsername(authentication);
+        return ApiResponse.success(queryCacheService.get(
+                "query:teacher:homeroom-classes:" + username,
+                Duration.ofSeconds(20),
+                new TypeReference<List<HomeroomClassRow>>() {
+                },
+                () -> teacherMapper.findHomeroomClassesByUsername(username)
+        ));
+    }
+
+    @GetMapping("/classes/{classId}/students")
+    public ApiResponse<List<HomeroomClassStudentRow>> homeroomClassStudents(Authentication authentication, @PathVariable Long classId) {
+        String username = authenticatedUsername(authentication);
+        if (teacherMapper.countOwnedHomeroomClass(username, classId) == 0) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看本人负责班级的学生名单");
+        }
+        return ApiResponse.success(queryCacheService.get(
+                "query:teacher:homeroom-class-students:" + username + ":" + classId,
+                Duration.ofSeconds(15),
+                new TypeReference<List<HomeroomClassStudentRow>>() {
+                },
+                () -> teacherMapper.findHomeroomClassStudents(username, classId)
+        ));
+    }
+
     /**
      * 保存教师录入或修改的成绩。
      *
@@ -196,7 +225,10 @@ public class TeacherController {
     public ApiResponse<Void> createExam(Authentication authentication, @Valid @RequestBody TeacherExamRequest request) {
         String teacherName = teacherName(authentication);
         ensureOwnedOffering(teacherName, request.offeringId());
-        teacherMapper.insertExam(toExamCommand(null, request));
+        AcademicAdminMapper.ExamCommand command = toExamCommand(null, request);
+        teacherMapper.insertExam(command);
+        auditLogService.record(authentication.getName(), "CREATE_EXAM", "EXAM", command.getId(),
+                "offeringId=" + request.offeringId(), TraceIdHolder.get());
         evictTeacherAcademicCaches();
         return ApiResponse.success();
     }
@@ -207,6 +239,8 @@ public class TeacherController {
         ensureOwnedExam(teacherName, examId);
         ensureOwnedOffering(teacherName, request.offeringId());
         teacherMapper.updateExam(toExamCommand(examId, request));
+        auditLogService.record(authentication.getName(), "UPDATE_EXAM", "EXAM", examId,
+                "offeringId=" + request.offeringId(), TraceIdHolder.get());
         evictTeacherAcademicCaches();
         return ApiResponse.success();
     }
@@ -216,6 +250,7 @@ public class TeacherController {
         String teacherName = teacherName(authentication);
         ensureOwnedExam(teacherName, examId);
         teacherMapper.deleteExam(examId);
+        auditLogService.record(authentication.getName(), "DELETE_EXAM", "EXAM", examId, null, TraceIdHolder.get());
         evictTeacherAcademicCaches();
         return ApiResponse.success();
     }
@@ -242,6 +277,13 @@ public class TeacherController {
             throw new BusinessException(ErrorCode.NOT_FOUND, "教师账号不存在");
         }
         return displayName;
+    }
+
+    private String authenticatedUsername(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return authentication.getName();
     }
 
     private String normalize(String term) {

@@ -8,12 +8,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.cache.QueryCacheService;
 import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.error.ErrorCode;
+import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 import weidonglang.tianshiwebside.evaluation.mapper.EvaluationTaskRow;
 import weidonglang.tianshiwebside.evaluation.mapper.TeachingEvaluationMapper;
+import weidonglang.tianshiwebside.governance.ContentModerationService;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,10 +33,19 @@ import java.util.List;
 public class TeachingEvaluationController {
     private final TeachingEvaluationMapper evaluationMapper;
     private final QueryCacheService queryCacheService;
+    private final ContentModerationService moderationService;
+    private final AuditLogService auditLogService;
 
-    public TeachingEvaluationController(TeachingEvaluationMapper evaluationMapper, QueryCacheService queryCacheService) {
+    public TeachingEvaluationController(
+            TeachingEvaluationMapper evaluationMapper,
+            QueryCacheService queryCacheService,
+            ContentModerationService moderationService,
+            AuditLogService auditLogService
+    ) {
         this.evaluationMapper = evaluationMapper;
         this.queryCacheService = queryCacheService;
+        this.moderationService = moderationService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -65,6 +77,9 @@ public class TeachingEvaluationController {
             @Valid @RequestBody SubmitEvaluationRequest request
     ) {
         String username = authenticatedUsername(authentication);
+        if (request.comment() != null && !request.comment().isBlank()) {
+            moderationService.checkConfigured("STUDENT_CONTENT", request.comment(), username);
+        }
         Long studentId = evaluationMapper.findStudentIdByUsername(username);
         if (studentId == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "学生档案不存在");
@@ -85,6 +100,8 @@ public class TeachingEvaluationController {
                 request.comment() == null ? null : request.comment().trim(),
                 Instant.now()
         ));
+        auditLogService.record(username, "SUBMIT_TEACHING_EVALUATION", "TEACHING_EVALUATION", offeringId,
+                "overall=" + request.overallScore(), TraceIdHolder.get());
         queryCacheService.evictByPrefix("query:evaluations:");
         queryCacheService.evictByPrefix("query:teacher:evaluations:");
         queryCacheService.evictByPrefix("query:dashboard:" + username);

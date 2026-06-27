@@ -3,6 +3,7 @@ package weidonglang.tianshiwebside.student;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -56,14 +57,17 @@ public class AdminClassController {
                           ac.grade,
                           ac.class_name,
                           ac.advisor,
+                          ht.username as homeroom_teacher_username,
+                          ht.display_name as homeroom_teacher_name,
                           count(s.id) as student_count
                         from academic_class ac
+                        left join sys_user ht on ht.id = ac.homeroom_teacher_user_id
                         left join student s on s.class_name = ac.class_name
                         where (? is null
                           or ac.class_name like ?
                           or ac.college like ?
                           or ac.major like ?)
-                        group by ac.id, ac.college, ac.major, ac.grade, ac.class_name, ac.advisor
+                        group by ac.id, ac.college, ac.major, ac.grade, ac.class_name, ac.advisor, ht.username, ht.display_name
                         order by ac.grade desc, ac.college asc, ac.major asc, ac.class_name asc
                         """,
                 (rs, rowNum) -> new ClassRow(
@@ -73,6 +77,8 @@ public class AdminClassController {
                         rs.getString("grade"),
                         rs.getString("class_name"),
                         rs.getString("advisor"),
+                        rs.getString("homeroom_teacher_username"),
+                        rs.getString("homeroom_teacher_name"),
                         rs.getLong("student_count")
                 ),
                 normalizedKeyword,
@@ -90,12 +96,15 @@ public class AdminClassController {
         if (count("select count(*) from academic_class where class_name = ?", className) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "班级名称已存在");
         }
+        Long homeroomTeacherUserId = resolveTeacherUserId(request.homeroomTeacherUsername());
+        String advisor = normalize(request.advisor(), teacherDisplayName(homeroomTeacherUserId));
         jdbcTemplate.update("""
-                        insert into academic_class (college, major, grade, class_name, advisor, created_at, updated_at)
-                        values (?, ?, ?, ?, ?, ?, ?)
+                        insert into academic_class
+                          (college, major, grade, class_name, advisor, homeroom_teacher_user_id, created_at, updated_at)
+                        values (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 request.college().trim(), request.major().trim(), request.grade().trim(), className,
-                normalize(request.advisor()), Instant.now(), Instant.now());
+                advisor, homeroomTeacherUserId, Instant.now(), Instant.now());
         Long classId = jdbcTemplate.queryForObject("select id from academic_class where class_name = ?", Long.class, className);
         auditLogService.record(authentication.getName(), "CREATE_CLASS", "CLASS", classId, className, null);
         evictClassFlowCaches();
@@ -111,13 +120,21 @@ public class AdminClassController {
         if (count("select count(*) from academic_class where class_name = ? and id <> ?", nextClassName, classId) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "班级名称已存在");
         }
+        Long homeroomTeacherUserId = resolveTeacherUserId(request.homeroomTeacherUsername());
+        String advisor = normalize(request.advisor(), teacherDisplayName(homeroomTeacherUserId));
         jdbcTemplate.update("""
                         update academic_class
-                        set college = ?, major = ?, grade = ?, class_name = ?, advisor = ?, updated_at = ?
+                        set college = ?,
+                            major = ?,
+                            grade = ?,
+                            class_name = ?,
+                            advisor = ?,
+                            homeroom_teacher_user_id = ?,
+                            updated_at = ?
                         where id = ?
                         """,
                 request.college().trim(), request.major().trim(), request.grade().trim(), nextClassName,
-                normalize(request.advisor()), Instant.now(), classId);
+                advisor, homeroomTeacherUserId, Instant.now(), classId);
         jdbcTemplate.update("""
                         update student
                         set college = ?, major = ?, grade = ?, class_name = ?
@@ -249,6 +266,39 @@ public class AdminClassController {
         return ApiResponse.success(requireClassStudent(request.studentId()));
     }
 
+    @PostMapping("/{classId}/students/batch-transfer")
+    @Transactional
+    @PreAuthorize("hasAuthority('USER_WRITE')")
+    public ApiResponse<BatchTransferResult> batchTransferStudents(
+            Authentication authentication,
+            @PathVariable Long classId,
+            @Valid @RequestBody BatchTransferStudentRequest request
+    ) {
+        ClassRow sourceClass = requireClass(classId);
+        ClassRow targetClass = requireClass(request.targetClassId());
+        List<String> errors = new ArrayList<>();
+        int transferred = 0;
+        for (Long studentId : request.studentIds()) {
+            try {
+                ClassStudentRow student = requireClassStudent(studentId);
+                if (!student.className().equals(sourceClass.className())) {
+                    errors.add(student.studentNo() + " 不属于当前班级");
+                    continue;
+                }
+                assignStudentToClass(studentId, targetClass);
+                transferred++;
+            } catch (BusinessException ex) {
+                errors.add(studentId + " " + ex.getMessage());
+            }
+        }
+        auditLogService.record(authentication.getName(), "BATCH_TRANSFER_STUDENTS", "CLASS", request.targetClassId(),
+                sourceClass.className() + " -> " + targetClass.className() + ", transferred=" + transferred
+                        + ", errors=" + errors.size(),
+                null, errors.isEmpty(), String.join("; ", errors));
+        evictClassFlowCaches();
+        return ApiResponse.success(new BatchTransferResult(transferred, errors.size(), errors));
+    }
+
     private void importStudent(StudentImportRow row, ClassRow targetClass) {
         String studentNo = row.studentNo().trim();
         if (count("select count(*) from student where student_no = ?", studentNo) > 0
@@ -296,8 +346,11 @@ public class AdminClassController {
                           ac.grade,
                           ac.class_name,
                           ac.advisor,
+                          ht.username as homeroom_teacher_username,
+                          ht.display_name as homeroom_teacher_name,
                           (select count(*) from student s where s.class_name = ac.class_name) as student_count
                         from academic_class ac
+                        left join sys_user ht on ht.id = ac.homeroom_teacher_user_id
                         where ac.id = ?
                         """,
                 (rs, rowNum) -> new ClassRow(
@@ -307,6 +360,8 @@ public class AdminClassController {
                         rs.getString("grade"),
                         rs.getString("class_name"),
                         rs.getString("advisor"),
+                        rs.getString("homeroom_teacher_username"),
+                        rs.getString("homeroom_teacher_name"),
                         rs.getLong("student_count")
                 ),
                 classId);
@@ -416,6 +471,33 @@ public class AdminClassController {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    private Long resolveTeacherUserId(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        List<Long> rows = jdbcTemplate.query("""
+                        select u.id
+                        from sys_user u
+                        join sys_user_role ur on ur.user_id = u.id
+                        join sys_role r on r.id = ur.role_id
+                        where u.username = ?
+                          and r.code = 'TEACHER'
+                        """,
+                (rs, rowNum) -> rs.getLong("id"),
+                username.trim());
+        if (rows.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "班主任账号不存在或不是教师角色");
+        }
+        return rows.get(0);
+    }
+
+    private String teacherDisplayName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return jdbcTemplate.queryForObject("select display_name from sys_user where id = ?", String.class, userId);
+    }
+
     private void evictClassFlowCaches() {
         queryCacheService.evictByPrefix("query:student:");
         queryCacheService.evictByPrefix("query:dashboard:");
@@ -423,7 +505,8 @@ public class AdminClassController {
         queryCacheService.evictByPrefix("query:teacher:");
     }
 
-    public record ClassRow(Long id, String college, String major, String grade, String className, String advisor, Long studentCount) {
+    public record ClassRow(Long id, String college, String major, String grade, String className, String advisor,
+                           String homeroomTeacherUsername, String homeroomTeacherName, Long studentCount) {
     }
 
     public record ClassStudentRow(Long studentId, String studentNo, String name, String college, String major,
@@ -437,7 +520,11 @@ public class AdminClassController {
                                @NotBlank @Size(max = 80) String major,
                                @NotBlank @Size(max = 20) String grade,
                                @NotBlank @Size(max = 80) String className,
-                               @Size(max = 80) String advisor) {
+                               @Size(max = 80) String advisor,
+                               @Size(max = 64) String homeroomTeacherUsername) {
+        public ClassRequest(String college, String major, String grade, String className, String advisor) {
+            this(college, major, grade, className, advisor, null);
+        }
     }
 
     public record AddStudentRequest(@NotBlank @Size(max = 32) String studentNo) {
@@ -459,6 +546,12 @@ public class AdminClassController {
     public record TransferStudentRequest(@NotNull Long studentId, @NotNull Long targetClassId) {
     }
 
+    public record BatchTransferStudentRequest(@NotNull Long targetClassId, @NotEmpty List<@NotNull Long> studentIds) {
+    }
+
     public record BatchClassStudentResult(int addedCount, int importedCount, int errorCount, List<String> errors) {
+    }
+
+    public record BatchTransferResult(int transferredCount, int errorCount, List<String> errors) {
     }
 }

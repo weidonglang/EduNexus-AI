@@ -7,6 +7,8 @@ export interface AcademicClass {
   grade: string
   className: string
   advisor?: string
+  homeroomTeacherUsername?: string
+  homeroomTeacherName?: string
   studentCount: number
 }
 
@@ -29,6 +31,7 @@ export interface ClassPayload {
   grade: string
   className: string
   advisor?: string
+  homeroomTeacherUsername?: string
 }
 
 export interface ImportStudentPayload {
@@ -85,4 +88,11 @@ export function transferAdminClassStudentApi(classId: number, studentId: number,
     studentId,
     targetClassId,
   })
+}
+
+export function batchTransferAdminClassStudentsApi(classId: number, targetClassId: number, studentIds: number[]) {
+  return http.post<never, ApiResponse<{ transferredCount: number; errorCount: number; errors: string[] }>>(
+    `/admin/classes/${classId}/students/batch-transfer`,
+    { targetClassId, studentIds },
+  )
 }
