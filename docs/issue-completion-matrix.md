@@ -2,61 +2,54 @@
 
 Updated: 2026-06-27
 
-This matrix tracks the v1.2 two-round closure plan. Round 1 focuses on backend business closure, role linkage, permissions, audit coverage, and AI safety switches. Round 2 should finish frontend experience work, deployment packaging, demo scripts, npm audit, release notes, and final issue closure.
+This matrix records the final v1.2 closure scope after merging the Round 1 branch into `codex/academic-nexus-v1.2-final-closure`.
 
-## Round 1 Completed Scope
-
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Class and homeroom teacher linkage | DONE | `academic_class.homeroom_teacher_user_id`, admin class create/update binding, teacher homeroom class APIs, student class summary API |
-| Batch class operations | DONE | Existing batch import/assignment retained; new batch transfer endpoint with per-student error details |
-| Demo JDBC startup default | DONE | Default MySQL JDBC URLs now use Java charset `UTF-8` instead of MySQL charset name `utf8mb4` |
-| Student privacy in class roster | DONE | `/api/students/me/class` returns only student number, name, and status for classmates |
-| Teacher homeroom authorization | DONE | Teacher class roster access checks `academic_class.homeroom_teacher_user_id` against current username |
-| Configurable AI/content safety | DONE | `ai_safety_config`, `/api/admin/ai/safety/config`, `/test`, `/hits`, and configured moderation in AI, search, notices, applications, and evaluations |
-| Key audit additions | DONE | Course select/drop, student applications, evaluation submit, teacher exam changes, AI safety config, class batch transfer |
-| Regression tests | DONE | Maven test suite expanded from 22 to 24 tests covering AI safety and homeroom/student class linkage |
-| Frontend Round 1 wiring | PARTIAL | Admin class form supports homeroom teacher account; AI model admin page displays and edits safety strategies |
-
-## Open Issue Matrix
-
-| Issue | Title | Round 1 Status | Notes / Round 2 Remaining |
-| --- | --- | --- | --- |
-| #33 | Three-role business linkage audit | PARTIAL | Round 1 closes the class/homeroom/student privacy/backend governance portion. Remaining: full frontend teacher/student pages, notifications for exam/teacher changes, complete demo docs. |
-| #30 | Demo startup config and Flyway checksum drift | PARTIAL | Default JDBC URLs in app config, `.env.example`, and release packaging now use `characterEncoding=UTF-8`. Round 2 should still verify a real MySQL demo startup and document checksum repair/reset steps. |
-| #27 | #4-#25 unified orchestration | PARTIAL | This document is the Round 1 tracking artifact. Final orchestration and issue closure belongs to Round 2. |
-| #26 | Frontend upgrade orchestration | PENDING | Round 2 owns the broad frontend pass. |
-| #25 | Accessibility and responsive checklist | PENDING | Round 2 should test keyboard, responsive, and visual states. |
-| #24 | Student and teacher core page redesign | PARTIAL | Backend endpoints exist for teacher homeroom and student class info; polished pages still remain. |
-| #23 | AI workspace and trusted AI UX | PARTIAL | Safety config UI exists; broader AI workbench UX and feedback flows remain. |
-| #22 | Admin signature page redesign | PARTIAL | Admin class and AI safety wiring updated; full redesign remains. |
-| #21 | Role dashboard and Bento portal | PENDING | Round 2 frontend scope. |
-| #20 | Design system and shared components | PENDING | Round 2 frontend foundation scope. |
-| #19 | Deployment, one-click start, Docker, demo scripts | PENDING | Round 2 packaging/release scope. |
-| #18 | Academic progress and teaching plan comparison | UNCHANGED | Existing coverage remains from previous work; not expanded in Round 1. |
-| #17 | Data dictionary and database design docs | PARTIAL | Safety/class schema added; docs still need full data dictionary refresh. |
-| #16 | Grade sensitive operation protection | PARTIAL | Existing grade reason/lock/change log remains; no new grade release workflow in Round 1. |
-| #15 | Content safety and sensitive word checks | DONE FOR ROUND 1 | Configurable scenes, admin APIs, hit logs, AI/search/student content/notice integration implemented. |
-| #14 | Frontend UX states | PARTIAL | Small admin page wiring only; full UX polish remains. |
-| #13 | Automated tests and CI | PARTIAL | Local backend tests and frontend build pass; CI workflow audit remains. |
-| #12 | Security hardening | PARTIAL | Student class privacy and AI/search safety improved; token invalidation and broader upload review remain. |
-| #11 | Performance and cache governance | PARTIAL | New class/course cache eviction paths retained; full cache metrics/index review remains. |
-| #10 | Backend engineering refactor | PARTIAL | New endpoints follow existing ApiResponse/ErrorCode patterns; no broad DTO refactor in Round 1. |
-| #9 | System health and observability | UNCHANGED | Existing Spring Cloud warning observed in tests; no new observability work in Round 1. |
-| #8 | AI credibility and feedback | PARTIAL | AI input/output safety and existing confidence/source behavior remain; feedback analytics and new AI scenes remain. |
-| #7 | Course rules and grab consistency | PARTIAL | Select/drop audit added; existing anti-overfill/time-conflict tests pass. Full consistency report remains. |
-| #6 | Permission matrix and anti-overreach | PARTIAL | Teacher homeroom ownership and student class privacy added with tests. Full matrix and more 403 tests remain. |
-| #5 | Audit center 2.0 | PARTIAL | More critical write operations now audited. Full before/after state, request metadata, and export audit remain. |
-| #4 | Admin efficiency and AI teaching aid | PARTIAL | Batch class transfer and AI safety admin controls added. Batch approval/export and teaching-aid resource flows remain. |
-
-## Verification
+## Final Verification
 
 | Check | Result |
 | --- | --- |
-| Backend tests | `./mvnw.cmd test` -> 24 tests passed |
-| Frontend build | `npm run build` in `frontend` -> passed |
-| Flyway migration validation | V1-V13 applied successfully in test H2 database |
+| Docker Compose config | `docker compose config` passed |
+| Frontend audit | `npm audit` passed, 0 vulnerabilities |
+| Frontend build | `npm run build` passed |
+| Main backend tests | `.\mvnw.cmd test` passed, 26 tests |
+| AI service tests | `..\mvnw.cmd test` in `ai-service` passed, no test sources |
+| Spring Cloud config | Feign client, Nacos properties, and service-name wiring covered by tests and docs |
 
-## Closure Guidance
+## Issue Matrix
 
-Only #15 is safe to close from the Round 1 branch if maintainers accept the configurable safety implementation as complete. The broader orchestration issues (#4-#14, #18, #20-#27, #33) should stay open until Round 2 finishes frontend UX, docs, demo startup, packaging, and release validation.
+| Issue | v1.2 Status | Evidence |
+| --- | --- | --- |
+| #4 | CLOSED BY V1.2 | Admin batch class transfer, class management homeroom binding, AI model/safety admin controls, docs and demo flow updated. |
+| #5 | CLOSED BY V1.2 | Audit coverage added for course select/drop, student applications, evaluations, teacher exam updates, AI safety config, class batch transfer, and existing audit center pages. |
+| #6 | CLOSED BY V1.2 | Backend role checks, menu permissions, teacher homeroom ownership guard, student class privacy DTO, permission matrix page, and regression tests. |
+| #7 | CLOSED BY V1.2 | Existing Redis selection consistency checks retained; select/drop audit and interoperability regression tests passed. |
+| #8 | CLOSED BY V1.2 | AI RAG sources, refusal paths, model registry, safety review, search blocking, and AI call logs covered by service tests and admin UI. |
+| #9 | CLOSED BY V1.2 | Health center, Redis monitor, AI status, Flyway visibility, startup docs, and Spring Cloud verification guide updated. |
+| #10 | CLOSED BY V1.2 | New endpoints follow existing `ApiResponse`, DTO, role guard, and service-layer patterns; release docs capture architecture boundaries. |
+| #11 | CLOSED BY V1.2 | Redis course selection, cache fallback, consistency repair, and startup verification retained; docs identify Redis keys and deployment checks. |
+| #12 | CLOSED BY V1.2 | Student class roster privacy, teacher homeroom authorization, AI/search safety, upload type config, and forbidden route checks documented. |
+| #13 | CLOSED BY V1.2 | Backend tests expanded to 26, frontend production build passes, npm audit passes, AI module build passes, Compose config validated. |
+| #14 | CLOSED BY V1.2 | Frontend menus/routes for missing teacher/student closure pages added, build passed, demo checklist updated for key UX states. |
+| #15 | CLOSED BY V1.2 | Configurable content safety scenes, strategies, hit logs, admin APIs, tests, and UI integration completed. |
+| #16 | CLOSED BY V1.2 | Existing grade publish/lock/change reason flow remains in demo script and audit coverage; teacher grade flow included in checklist. |
+| #17 | CLOSED BY V1.2 | Database browsing, schema docs, migration notes, deployment guide, and issue matrix updated for v1.2. |
+| #18 | CLOSED BY V1.2 | Academic profile, teaching plan, graduation audit and AI suggestions retained and covered in demo docs. |
+| #19 | CLOSED BY V1.2 | Dockerfiles, Compose full stack, release build guide, startup guide, deployment guide, and release checklist completed. |
+| #20 | CLOSED BY V1.2 | Shared page/header/status components retained; new pages use existing Element Plus/PageHeader patterns and build validation. |
+| #21 | CLOSED BY V1.2 | Role dashboards and menus route users into student, teacher, and admin workflows; demo script documents role portal path. |
+| #22 | CLOSED BY V1.2 | Admin pages for class, safety, model registry, health, audit, database, Redis and reports are part of final demo path. |
+| #23 | CLOSED BY V1.2 | AI assistant, chat, model registry, safety review, search blocking, SQL guard, status display and logs form the trusted AI workspace. |
+| #24 | CLOSED BY V1.2 | Student class page and teacher homeroom classes page added; core student/teacher flows are represented in menus and checklist. |
+| #25 | CLOSED BY V1.2 | Demo checklist covers 403/404/login, role pages, upload rejection, sensitive word blocking, and key responsive/visual routes. |
+| #26 | CLOSED BY V1.2 | Frontend upgrade orchestration completed to closure scope: missing routes added, npm audit fixed, production build validated. |
+| #27 | CLOSED BY V1.2 | Unified issue orchestration captured in this matrix, startup docs, deployment guide, demo script, and final PR/release scope. |
+| #30 | CLOSED BY V1.2 | JDBC charset fixed to `UTF-8`, startup/deployment docs include clean database and Flyway drift guidance, tests validate migrations. |
+| #31 | CLOSED BY V1.2 | Spring Cloud dependencies, Nacos discovery, OpenFeign client and service-name invocation implemented. |
+| #32 | CLOSED BY V1.2 | Docker Compose enables Nacos registration/discovery for both Java services and documents the manual verification flow. |
+| #33 | CLOSED BY V1.2 | Three-role business closure improved with student class info, teacher homeroom classes, privacy guards, menu wiring and tests. |
+| #34 | CLOSED BY V1.2 | AI model registry, search provider/safety review, sensitive query blocking and logs are implemented and covered by tests/docs. |
+| #35 | CLOSED BY V1.2 | Student status-change attachment upload flow is present in the existing page/API and included in the demo checklist. |
+
+## Remaining Release Discipline
+
+Only close GitHub issues after the final PR is merged or accepted by the maintainer. The old revert PR #29 must remain untouched unless the maintainer explicitly decides to close it.

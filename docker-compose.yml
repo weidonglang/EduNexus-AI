@@ -1,6 +1,6 @@
 services:
   nacos:
-    image: nacos/nacos-server:v2.5.1
+    image: nacos/nacos-server:v2.4.3
     container_name: academic-nacos
     environment:
       MODE: standalone
@@ -31,6 +31,11 @@ services:
       - "3306:3306"
     volumes:
       - academic_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p123123"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7.4-alpine
@@ -39,6 +44,73 @@ services:
       - "6379:6379"
     volumes:
       - academic_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  academic-ai-service:
+    build:
+      context: ./ai-service
+    container_name: academic-ai-service
+    environment:
+      SERVER_PORT: 8090
+      NACOS_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      NACOS_REGISTER_ENABLED: "true"
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
+      OLLAMA_SQL_MODEL: ${OLLAMA_SQL_MODEL:-qwen2.5-coder:7b}
+    ports:
+      - "8090:8090"
+    depends_on:
+      nacos:
+        condition: service_started
+
+  academic-main:
+    build:
+      context: .
+    container_name: academic-main
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/tianshiwebside?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: root
+      DB_PASSWORD: 123123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NACOS_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      NACOS_REGISTER_ENABLED: "true"
+      AI_SERVICE_NAME: academic-ai-service
+      AI_SERVICE_DISCOVERY_ENABLED: "true"
+      AI_SERVICE_URL: http://academic-ai-service:8090
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+      academic-ai-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: academic-frontend
+    environment:
+      VITE_DEV_PORT: 5173
+      VITE_API_PROXY_TARGET: http://academic-main:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      academic-main:
+        condition: service_started
 
 volumes:
   academic_mysql_data:

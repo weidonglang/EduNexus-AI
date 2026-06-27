@@ -139,6 +139,7 @@ public class DataInitializer {
             seedMenu("ai-chat", "AI \u804a\u5929", "/ai/chat", "MessagesSquare", null, 16);
             seedMenu("student", "\u5b66\u751f\u4fe1\u606f", "/student", "UserRound", null, 20);
             seedMenu("student-profile", "\u4e2a\u4eba\u4fe1\u606f", "/student/profile", "IdCard", "student", 21);
+            seedMenu("student-class", "我的班级", "/student/class", "UsersRound", "student", 22);
             seedMenu("student-status-change", "\u5b66\u7c4d\u5f02\u52a8\u7533\u8bf7", "/student/status-change", "FilePenLine", "student", 22);
             seedMenu("registration", "\u62a5\u540d\u7533\u8bf7", "/registration", "FilePenLine", null, 30);
             seedMenu("registration-minor", "\u5fae\u4e13\u4e1a\u62a5\u540d", "/registration/minor", "BadgePlus", "registration", 31);
@@ -169,6 +170,7 @@ public class DataInitializer {
             seedMenu("thesis-grade", "\u8bba\u6587\u6210\u7ee9\u67e5\u770b", "/information/thesis-grade", "Award", "graduation-design", 81);
             seedMenu("teacher", "\u6559\u5e08\u5de5\u4f5c\u53f0", "/teacher", "Presentation", null, 55);
             seedMenu("teacher-offerings", "\u4efb\u8bfe\u8bfe\u7a0b", "/teacher/courses", "BookOpen", "teacher", 56);
+            seedMenu("teacher-homeroom-classes", "班主任班级", "/teacher/classes", "UsersRound", "teacher", 57);
             seedMenu("teacher-grades", "\u6210\u7ee9\u5f55\u5165", "/teacher/grades", "SquarePen", "teacher", 57);
             seedMenu("teacher-exams", "\u8003\u8bd5\u5b89\u6392", "/teacher/exams", "CalendarClock", "teacher", 58);
             seedMenu("teacher-evaluations", "\u8bc4\u4ef7\u7ed3\u679c", "/teacher/evaluations", "ChartColumn", "teacher", 59);
@@ -217,6 +219,7 @@ public class DataInitializer {
                     "ai-chat",
                     "student",
                     "student-profile",
+                    "student-class",
                     "student-status-change",
                     "registration",
                     "registration-minor",
@@ -278,6 +281,7 @@ public class DataInitializer {
             removeRoleMenus(adminRole.getCode(), List.of(
                     "student",
                     "student-profile",
+                    "student-class",
                     "student-status-change",
                     "registration",
                     "registration-minor",
@@ -307,6 +311,7 @@ public class DataInitializer {
                     "thesis-grade",
                     "teacher",
                     "teacher-offerings",
+                    "teacher-homeroom-classes",
                     "teacher-grades",
                     "teacher-exams",
                     "teacher-evaluations"
@@ -329,6 +334,7 @@ public class DataInitializer {
                     "ai-chat",
                     "teacher",
                     "teacher-offerings",
+                    "teacher-homeroom-classes",
                     "teacher-grades",
                     "teacher-exams",
                     "teacher-evaluations"

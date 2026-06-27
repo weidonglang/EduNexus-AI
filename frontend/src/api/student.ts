@@ -19,6 +19,27 @@ export function studentProfileApi() {
   return http.get<never, ApiResponse<StudentProfile>>('/students/me/profile')
 }
 
+export interface StudentClassMember {
+  studentNo: string
+  name: string
+  status: string
+}
+
+export interface StudentClassInfo {
+  className: string
+  college: string
+  major: string
+  grade: string
+  advisor?: string
+  homeroomTeacherName?: string
+  studentCount: number
+  members: StudentClassMember[]
+}
+
+export function studentClassInfoApi() {
+  return http.get<never, ApiResponse<StudentClassInfo>>('/students/me/class')
+}
+
 export interface UpdateStudentProfileRequest {
   phone: string
   email: string

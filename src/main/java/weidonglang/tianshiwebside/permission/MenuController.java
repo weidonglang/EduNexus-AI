@@ -129,6 +129,7 @@ public class MenuController {
             codes.addAll(List.of(
                     "teacher",
                     "teacher-offerings",
+                    "teacher-homeroom-classes",
                     "teacher-grades",
                     "teacher-exams",
                     "teacher-evaluations"
@@ -138,6 +139,7 @@ public class MenuController {
             codes.addAll(List.of(
                     "student",
                     "student-profile",
+                    "student-class",
                     "student-status-change",
                     "registration",
                     "registration-minor",

@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+target
+release
+uploads
+logs
+node_modules
+frontend/node_modules
+frontend/dist
+ai-service/target
+*.log

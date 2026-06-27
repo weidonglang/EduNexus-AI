@@ -30,6 +30,34 @@ export function teacherOfferingsApi(term?: string) {
   return http.get<never, ApiResponse<TeacherOffering[]>>('/teacher/offerings', { params: term ? { term } : undefined })
 }
 
+export interface HomeroomClass {
+  classId: number
+  college: string
+  major: string
+  grade: string
+  className: string
+  advisor?: string
+  studentCount: number
+}
+
+export interface HomeroomClassStudent {
+  studentNo: string
+  studentName: string
+  college: string
+  major: string
+  className: string
+  grade: string
+  status: string
+}
+
+export function teacherHomeroomClassesApi() {
+  return http.get<never, ApiResponse<HomeroomClass[]>>('/teacher/classes')
+}
+
+export function teacherHomeroomClassStudentsApi(classId: number) {
+  return http.get<never, ApiResponse<HomeroomClassStudent[]>>(`/teacher/classes/${classId}/students`)
+}
+
 export interface TeacherGradeEntry {
   gradeId?: number
   offeringId: number

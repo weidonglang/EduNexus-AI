@@ -14,7 +14,9 @@
 - [ ] `npm --prefix frontend run build`
 - [ ] `.\mvnw.cmd test`
 - [ ] `.\mvnw.cmd -f ai-service/pom.xml test`
-- [ ] `.\scripts\build-release.ps1 -Version 1.0 -SkipTests`
+- [ ] `npm --prefix frontend audit`
+- [ ] `docker compose config`
+- [ ] `.\scripts\build-release.ps1 -Version 1.2 -SkipTests`
 
 ## 管理员页面
 
@@ -31,6 +33,7 @@
 ## 教师页面
 
 - [ ] `/teacher/offerings`
+- [ ] `/teacher/classes`
 - [ ] `/teacher/grades`
 - [ ] `/teacher/exams`
 - [ ] `/teacher/evaluations`
@@ -39,6 +42,7 @@
 ## 学生页面
 
 - [ ] `/course/selection`
+- [ ] `/student/class`
 - [ ] `/schedule/personal`
 - [ ] `/grade/query`
 - [ ] `/exam/query`
@@ -57,8 +61,15 @@
 
 ## 交付包
 
-- [ ] `release/Academic-Nexus-1.0.zip` 存在。
+- [ ] `release/Academic-Nexus-1.2.zip` 存在。
 - [ ] zip 内包含 `academic-nexus-web.jar`。
 - [ ] zip 内包含 `academic-nexus-ai-service.jar`。
 - [ ] zip 内包含 `.env.example`。
 - [ ] zip 内包含 `start-release.ps1` 和 `start-release.bat`。
+
+## Spring Cloud
+
+- [ ] `docker compose up -d nacos mysql redis` 可以启动基础设施。
+- [ ] 开启 `NACOS_DISCOVERY_ENABLED=true`、`NACOS_REGISTER_ENABLED=true`、`AI_SERVICE_DISCOVERY_ENABLED=true`。
+- [ ] Nacos 服务列表能看到 `academic-main` 和 `academic-ai-service`。
+- [ ] 主系统 AI 状态页能访问 AI 服务；Ollama 关闭时显示本地兜底模式。

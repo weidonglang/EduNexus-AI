@@ -60,6 +60,7 @@ function fallbackMenus(roles: string[]): MenuItem[] {
   const student: MenuItem[] = [
     tree('student', '学生信息', '/student', 'UserRound', [
       item('student-profile', '个人信息', '/student/profile', 'IdCard'),
+      item('student-class', '我的班级', '/student/class', 'UsersRound'),
       item('student-status-change', '学籍异动申请', '/student/status-change', 'FilePenLine'),
     ]),
     tree('registration', '报名申请', '/registration', 'FilePenLine', [
@@ -98,6 +99,7 @@ function fallbackMenus(roles: string[]): MenuItem[] {
   const teacher: MenuItem[] = [
     tree('teacher', '教师工作台', '/teacher', 'Presentation', [
       item('teacher-offerings', '任课课程', '/teacher/courses', 'BookOpen'),
+      item('teacher-homeroom-classes', '班主任班级', '/teacher/classes', 'UsersRound'),
       item('teacher-grades', '成绩录入', '/teacher/grades', 'SquarePen'),
       item('teacher-exams', '考试安排', '/teacher/exams', 'CalendarClock'),
       item('teacher-evaluations', '评价结果', '/teacher/evaluations', 'ChartColumn'),

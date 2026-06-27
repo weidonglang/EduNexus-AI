@@ -3,11 +3,14 @@ package weidonglang.tianshiwebside;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import weidonglang.tianshiwebside.ai.AcademicProfileService;
 import weidonglang.tianshiwebside.ai.AiAssistantService;
 import weidonglang.tianshiwebside.ai.AiModelRegistryService;
+import weidonglang.tianshiwebside.ai.AiServiceFeignClient;
 import weidonglang.tianshiwebside.ai.AiSearchService;
 import weidonglang.tianshiwebside.ai.NaturalSqlService;
 import weidonglang.tianshiwebside.common.error.BusinessException;
@@ -35,6 +38,10 @@ class AiFeatureIntegrationTests {
     private AiSearchService searchService;
     @Autowired
     private ContentModerationService moderationService;
+    @Autowired
+    private ApplicationContext applicationContext;
+    @Autowired
+    private Environment environment;
 
     @Test
     void ragRefusesOffTopicAndPermissionOutOfScopeQuestions() {
@@ -143,6 +150,24 @@ class AiFeatureIntegrationTests {
                   and action = 'BLOCK'
                 """, Integer.class);
         assertThat(hitCount).isNotNull().isPositive();
+    }
+
+    @Test
+    void aiSafetyStrategiesRecordWarnReviewAndLogOnlyWithoutBlocking() {
+        moderationService.updateSafetyConfig("ROUND1_WARN", true, "warn", "warn strategy");
+        moderationService.updateSafetyConfig("ROUND1_REVIEW", true, "review", "review strategy");
+        moderationService.updateSafetyConfig("ROUND1_LOG", true, "log_only", "log strategy");
+
+        assertThat(moderationService.checkConfigured("ROUND1_WARN", "示例敏感词A", "admin_ai").action()).isEqualTo("WARN");
+        assertThat(moderationService.checkConfigured("ROUND1_REVIEW", "示例敏感词A", "admin_ai").action()).isEqualTo("REVIEW");
+        assertThat(moderationService.checkConfigured("ROUND1_LOG", "示例敏感词A", "admin_ai").action()).isEqualTo("LOG_ONLY");
+    }
+
+    @Test
+    void springCloudFeignClientIsRegisteredForAiServiceName() {
+        assertThat(applicationContext.getBean(AiServiceFeignClient.class)).isNotNull();
+        assertThat(environment.getProperty("app.ai-service.name")).isEqualTo("academic-ai-service");
+        assertThat(environment.getProperty("spring.cloud.nacos.discovery.server-addr")).isNotBlank();
     }
 
     private void seedStudent(String username) {

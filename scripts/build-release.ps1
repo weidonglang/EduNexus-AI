@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.0",
+    [string]$Version = "1.2",
     [switch]$SkipTests
 )
 
@@ -90,6 +90,10 @@ Invoke-Step "Assemble release directory" {
     Copy-RequiredFile -Source (Join-Path $Root "ai-service/target/tianshi-ai-service-0.0.1-SNAPSHOT.jar") -Destination (Join-Path $PackageDir "academic-nexus-ai-service.jar")
     Copy-RequiredFile -Source (Join-Path $Root "README.md") -Destination (Join-Path $PackageDir "README.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/startup-guide.md") -Destination (Join-Path $PackageDir "startup-guide.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/deployment-guide.md") -Destination (Join-Path $PackageDir "deployment-guide.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/spring-cloud-verification.md") -Destination (Join-Path $PackageDir "spring-cloud-verification.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/demo-checklist.md") -Destination (Join-Path $PackageDir "demo-checklist.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/issue-completion-matrix.md") -Destination (Join-Path $PackageDir "issue-completion-matrix.md")
     Copy-RequiredFile -Source (Join-Path $Root "docker-compose.yml") -Destination (Join-Path $PackageDir "docker-compose.yml")
 
     @'
@@ -99,9 +103,9 @@ SERVER_PORT=8080
 AI_SERVICE_PORT=8090
 AI_SERVICE_URL=http://localhost:8090
 AI_SERVICE_NAME=academic-ai-service
-AI_SERVICE_DISCOVERY_ENABLED=false
-NACOS_DISCOVERY_ENABLED=false
-NACOS_REGISTER_ENABLED=false
+AI_SERVICE_DISCOVERY_ENABLED=true
+NACOS_DISCOVERY_ENABLED=true
+NACOS_REGISTER_ENABLED=true
 NACOS_ADDR=127.0.0.1:8848
 
 DB_URL=jdbc:mysql://localhost:3306/tianshiwebside?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -143,11 +147,16 @@ if (-not $env:AI_SERVICE_URL -and $env:AI_SERVICE_PORT) {
     $env:AI_SERVICE_URL = "http://localhost:$($env:AI_SERVICE_PORT)"
 }
 
-Write-Host "Starting Academic-Nexus AI service on port $env:AI_SERVICE_PORT"
+$webPort = if ($env:SERVER_PORT) { $env:SERVER_PORT } else { "8080" }
+$aiPort = if ($env:AI_SERVICE_PORT) { $env:AI_SERVICE_PORT } else { "8090" }
+
+Write-Host "Starting Academic-Nexus AI service on port $aiPort"
+$env:SERVER_PORT = $aiPort
 $ai = Start-Process -FilePath "java" -ArgumentList @("-jar", (Join-Path $BaseDir "academic-nexus-ai-service.jar")) -PassThru -WindowStyle Hidden
 
 try {
-    Write-Host "Starting Academic-Nexus web application on port $env:SERVER_PORT"
+    $env:SERVER_PORT = $webPort
+    Write-Host "Starting Academic-Nexus web application on port $webPort"
     java -jar (Join-Path $BaseDir "academic-nexus-web.jar")
 } finally {
     if ($ai -and -not $ai.HasExited) {
@@ -182,7 +191,7 @@ Default demo accounts use password `123456`:
 - `teacher001`
 - `student001`
 
-The web application starts at `http://localhost:8080`. To use Spring Cloud service discovery, set `NACOS_DISCOVERY_ENABLED=true`, `NACOS_REGISTER_ENABLED=true`, and `AI_SERVICE_DISCOVERY_ENABLED=true` in `.env`.
+The web application starts at `http://localhost:8080`. Spring Cloud service discovery is enabled in `.env.example`; set `NACOS_DISCOVERY_ENABLED=false`, `NACOS_REGISTER_ENABLED=false`, and `AI_SERVICE_DISCOVERY_ENABLED=false` only when you want fixed-url local mode.
 "@ | Set-Content -Path (Join-Path $PackageDir "README-release.md") -Encoding UTF8
 }
 
