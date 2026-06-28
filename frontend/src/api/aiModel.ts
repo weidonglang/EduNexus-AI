@@ -20,6 +20,22 @@ export interface AiModelRecord {
   updatedAt: string
 }
 
+export interface SearchConfigTemplate {
+  code: string
+  name: string
+  description: string
+  provider: string
+  enabled: boolean
+  baseUrl: string
+  apiKeyEnv: string
+  allowedScenes: string
+  safetyPolicy: string
+  method: string
+  authMode: string
+  testQuery: string
+  resultMapping: string
+}
+
 export interface AiModelRequest {
   name: string
   provider: string
@@ -80,6 +96,29 @@ export interface AiSafetyConfig {
   updatedAt: string
 }
 
+export interface SafetyTemplate {
+  code: string
+  name: string
+  scenario: string
+  enabled: boolean
+  strategy: string
+  description: string
+  manualReview: boolean
+  moderationLog: boolean
+}
+
+export interface SafetyTestResponse {
+  success: boolean
+  blocked: boolean
+  scene: string
+  riskLevel: string
+  action: string
+  matchedWords: string
+  message: string
+  suggestion: string
+  checkedAt: string
+}
+
 export function aiModelsApi() {
   return http.get<never, ApiResponse<AiModelRecord[]>>('/admin/ai/models')
 }
@@ -90,6 +129,10 @@ export function createAiModelApi(payload: AiModelRequest) {
 
 export function updateAiModelApi(id: number, payload: AiModelRequest) {
   return http.put<never, ApiResponse<AiModelRecord>>(`/admin/ai/models/${id}`, payload)
+}
+
+export function deleteAiModelApi(id: number) {
+  return http.delete<never, ApiResponse<void>>(`/admin/ai/models/${id}`)
 }
 
 export function enableAiModelApi(id: number) {
@@ -112,6 +155,10 @@ export function aiSearchConfigApi() {
   return http.get<never, ApiResponse<SearchConfig>>('/admin/ai/search/config')
 }
 
+export function aiSearchTemplatesApi() {
+  return http.get<never, ApiResponse<SearchConfigTemplate[]>>('/admin/ai/search/templates')
+}
+
 export function updateAiSearchConfigApi(payload: Omit<SearchConfig, 'id' | 'lastStatus' | 'lastLatencyMs' | 'lastError' | 'lastTestedAt' | 'updatedAt'>) {
   return http.put<never, ApiResponse<SearchConfig>>('/admin/ai/search/config', payload)
 }
@@ -124,6 +171,14 @@ export function aiSafetyConfigsApi() {
   return http.get<never, ApiResponse<AiSafetyConfig[]>>('/admin/ai/safety/config')
 }
 
+export function aiSafetyTemplatesApi() {
+  return http.get<never, ApiResponse<SafetyTemplate[]>>('/admin/ai/safety/templates')
+}
+
 export function updateAiSafetyConfigsApi(configs: Array<Pick<AiSafetyConfig, 'scene' | 'enabled' | 'strategy' | 'description'>>) {
   return http.put<never, ApiResponse<AiSafetyConfig[]>>('/admin/ai/safety/config', { configs })
+}
+
+export function testAiSafetyApi(scene: string, content: string) {
+  return http.post<never, ApiResponse<SafetyTestResponse>>('/admin/ai/safety/test', { scene, content })
 }

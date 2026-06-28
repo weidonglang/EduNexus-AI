@@ -2,7 +2,7 @@
 
 Updated: 2026-06-28
 
-This matrix records the closure scope through v1.4.1-final-closure. v1.2 closed #4-#35; v1.3.0 closed #39-#59; v1.4.0-final-polish focused on #61-#74; v1.4.1-final-closure stabilizes #76-#104 without publishing a release or closing issues before PR merge.
+This matrix records the closure scope through v2.0.0 Stable Complete Edition. v1.2 closed #4-#35; v1.3.0 closed #39-#59; v1.4.0-final-polish focused on #61-#74; v1.4.1-final-closure stabilized #76-#104; v2.0.0 adds final release stabilization for #106-#108.
 
 ## Final Verification
 
@@ -13,7 +13,7 @@ This matrix records the closure scope through v1.4.1-final-closure. v1.2 closed 
 | Docker compose up smoke | `docker compose up -d` passed; frontend 5174, main 8088, and AI service 18090 were reachable |
 | Frontend audit | `npm audit` passed, 0 vulnerabilities |
 | Frontend build | `npm run build` passed |
-| Main backend tests | `.\mvnw.cmd test` passes, 49 tests |
+| Main backend tests | `.\mvnw.cmd test` passed, 56 tests |
 | AI service tests | `..\mvnw.cmd test` in `ai-service` passed, no test sources |
 | Python script tests | `py -m pytest scripts/tests -q` passed, 5 tests |
 | Spring Cloud config | Feign client, Nacos properties, and service-name wiring covered by tests and docs |
@@ -117,6 +117,9 @@ This matrix records the closure scope through v1.4.1-final-closure. v1.2 closed 
 | #101 | FIXED BY V1.4.1 | Course grab requires `offeringId` with a readable validation error. |
 | #103 | FIXED BY V1.4.1 FINAL CLOSURE | Docker Maven builds use BuildKit cache mounts, `dependency:go-offline`, mirror settings and build scripts; `.\scripts\docker-build.ps1` passed. |
 | #104 | FIXED BY V1.4.1 FINAL CLOSURE | Compose host ports are configurable with non-conflicting defaults; port-check script passed and compose smoke succeeded after Nacos startup-order hardening. |
+| #106 | FIXED BY V2.0.0 | AI model registry supports safe soft delete; default and enabled models are protected, active lists hide deleted models, historical logs remain readable, and `AiModelDeleteRegressionTests` covers the closure. |
+| #107 | FIXED BY V2.0.0 | AI web search and safety review expose preset templates, local-demo search verification, safety block/log-only tests, frontend result cards, `.env.example` placeholders and `docs/ai-search-and-safety-config.md`; covered by `AiSearchSafetyConfigTemplateTests`. |
+| #108 | FIXED BY V2.0.0 | Dashboard `/api/dashboard/me` returns role-scoped cards for students, teachers and admins, and the frontend renders those cards without misleading global labels; covered by `DashboardRoleScopeRegressionTests`. |
 
 ## Remaining Release Discipline
 

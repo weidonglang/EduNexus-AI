@@ -26,27 +26,10 @@ public class AiModelRegistryService {
                                enabled, is_default, description, last_status, last_latency_ms, last_error,
                                last_checked_at, created_at, updated_at
                         from ai_model_registry
+                        where deleted = false
                         order by model_type, is_default desc, enabled desc, id
                         """,
-                (rs, rowNum) -> new AiModelRecord(
-                        rs.getLong("id"),
-                        rs.getString("name"),
-                        rs.getString("provider"),
-                        rs.getString("model_name"),
-                        rs.getString("base_url"),
-                        rs.getString("api_key_ref"),
-                        rs.getString("model_type"),
-                        rs.getString("purpose"),
-                        rs.getBoolean("enabled"),
-                        rs.getBoolean("is_default"),
-                        rs.getString("description"),
-                        rs.getString("last_status"),
-                        nullableLong(rs.getObject("last_latency_ms")),
-                        rs.getString("last_error"),
-                        instant(rs.getTimestamp("last_checked_at")),
-                        rs.getTimestamp("created_at").toInstant(),
-                        rs.getTimestamp("updated_at").toInstant()
-                ));
+                (rs, rowNum) -> mapModel(rs));
     }
 
     public List<AiModelRecord> enabledModels(String modelType) {
@@ -56,28 +39,11 @@ public class AiModelRegistryService {
                                last_checked_at, created_at, updated_at
                         from ai_model_registry
                         where enabled = true
+                          and deleted = false
                           and model_type = ?
                         order by is_default desc, id asc
                         """,
-                (rs, rowNum) -> new AiModelRecord(
-                        rs.getLong("id"),
-                        rs.getString("name"),
-                        rs.getString("provider"),
-                        rs.getString("model_name"),
-                        rs.getString("base_url"),
-                        rs.getString("api_key_ref"),
-                        rs.getString("model_type"),
-                        rs.getString("purpose"),
-                        rs.getBoolean("enabled"),
-                        rs.getBoolean("is_default"),
-                        rs.getString("description"),
-                        rs.getString("last_status"),
-                        nullableLong(rs.getObject("last_latency_ms")),
-                        rs.getString("last_error"),
-                        instant(rs.getTimestamp("last_checked_at")),
-                        rs.getTimestamp("created_at").toInstant(),
-                        rs.getTimestamp("updated_at").toInstant()
-                ),
+                (rs, rowNum) -> mapModel(rs),
                 normalize(modelType));
     }
 
@@ -143,26 +109,9 @@ public class AiModelRegistryService {
                                    last_checked_at, created_at, updated_at
                             from ai_model_registry
                             where id = ?
+                              and deleted = false
                             """,
-                    (rs, rowNum) -> new AiModelRecord(
-                            rs.getLong("id"),
-                            rs.getString("name"),
-                            rs.getString("provider"),
-                            rs.getString("model_name"),
-                            rs.getString("base_url"),
-                            rs.getString("api_key_ref"),
-                            rs.getString("model_type"),
-                            rs.getString("purpose"),
-                            rs.getBoolean("enabled"),
-                            rs.getBoolean("is_default"),
-                            rs.getString("description"),
-                            rs.getString("last_status"),
-                            nullableLong(rs.getObject("last_latency_ms")),
-                            rs.getString("last_error"),
-                            instant(rs.getTimestamp("last_checked_at")),
-                            rs.getTimestamp("created_at").toInstant(),
-                            rs.getTimestamp("updated_at").toInstant()
-                    ),
+                    (rs, rowNum) -> mapModel(rs),
                     id);
         } catch (EmptyResultDataAccessException ex) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "AI 模型不存在");
@@ -172,6 +121,23 @@ public class AiModelRegistryService {
     public void setEnabled(Long id, boolean enabled) {
         require(id);
         jdbcTemplate.update("update ai_model_registry set enabled = ?, updated_at = ? where id = ?", enabled, Instant.now(), id);
+    }
+
+    @Transactional
+    public void softDelete(Long id, String operator) {
+        AiModelRecord model = require(id);
+        if (model.defaultModel()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "默认模型不能删除，请先切换默认模型");
+        }
+        if (model.enabled()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "启用模型不能删除，请先停用模型");
+        }
+        jdbcTemplate.update("""
+                        update ai_model_registry
+                        set deleted = true, deleted_at = ?, deleted_by = ?, enabled = false, updated_at = ?
+                        where id = ?
+                        """,
+                Instant.now(), clean(operator), Instant.now(), id);
     }
 
     @Transactional
@@ -191,6 +157,7 @@ public class AiModelRegistryService {
                             from ai_model_registry
                             where model_type = ?
                               and enabled = true
+                              and deleted = false
                               and is_default = true
                             order by id
                             limit 1
@@ -218,6 +185,28 @@ public class AiModelRegistryService {
 
     private String clean(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private AiModelRecord mapModel(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new AiModelRecord(
+                rs.getLong("id"),
+                rs.getString("name"),
+                rs.getString("provider"),
+                rs.getString("model_name"),
+                rs.getString("base_url"),
+                rs.getString("api_key_ref"),
+                rs.getString("model_type"),
+                rs.getString("purpose"),
+                rs.getBoolean("enabled"),
+                rs.getBoolean("is_default"),
+                rs.getString("description"),
+                rs.getString("last_status"),
+                nullableLong(rs.getObject("last_latency_ms")),
+                rs.getString("last_error"),
+                instant(rs.getTimestamp("last_checked_at")),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("updated_at").toInstant()
+        );
     }
 
     private Instant instant(Timestamp timestamp) {

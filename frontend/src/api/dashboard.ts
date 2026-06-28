@@ -9,11 +9,23 @@ export interface DashboardEvent {
 }
 
 export interface DashboardOverview {
+  roleView: 'STUDENT' | 'TEACHER' | 'ADMIN'
+  term: string
+  scopeLabel: string
+  cards: DashboardCard[]
   courseCount: number
   pendingEvaluationCount: number
   examCount: number
   earnedCredits: number
   recentEvents: DashboardEvent[]
+}
+
+export interface DashboardCard {
+  key: string
+  label: string
+  value: number
+  suffix: string
+  scope: string
 }
 
 export async function fetchDashboardOverviewApi() {

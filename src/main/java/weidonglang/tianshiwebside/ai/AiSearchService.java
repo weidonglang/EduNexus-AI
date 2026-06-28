@@ -73,6 +73,86 @@ public class AiSearchService {
         return config();
     }
 
+    public List<AiSearchDtos.SearchConfigTemplate> templates() {
+        return List.of(
+                new AiSearchDtos.SearchConfigTemplate(
+                        "DISABLED",
+                        "关闭联网搜索",
+                        "完全关闭外部搜索，仅使用本地 AI 和知识库兜底。",
+                        "LOCAL_DEMO",
+                        false,
+                        "",
+                        "",
+                        "CHAT,ASSISTANT,TECHNICAL",
+                        "关闭搜索时仍保留敏感内容拦截和 AI 输入输出安全审查。",
+                        "GET",
+                        "NONE",
+                        "Academic-Nexus test",
+                        "not applicable"
+                ),
+                new AiSearchDtos.SearchConfigTemplate(
+                        "LOCAL_DEMO",
+                        "本地模拟搜索",
+                        "不访问公网，返回内置样例结果，适合课堂演示和验收测试。",
+                        "LOCAL_DEMO",
+                        true,
+                        "",
+                        "",
+                        "CHAT,ASSISTANT,TECHNICAL",
+                        "禁止个人数据、成绩、SQL、密码、密钥等敏感问题自动联网搜索；搜索结果继续进入安全审查。",
+                        "GET",
+                        "NONE",
+                        "Spring Cloud Alibaba Nacos Discovery 最新用法",
+                        "内置 title/link/summary"
+                ),
+                new AiSearchDtos.SearchConfigTemplate(
+                        "OPENAI_COMPATIBLE",
+                        "OpenAI-compatible Search API",
+                        "用于兼容返回 results 数组的搜索服务，认证通过 Bearer API Key。",
+                        "CUSTOM",
+                        true,
+                        "https://search.example.com/v1/search?query={query}",
+                        "SEARCH_API_KEY",
+                        "CHAT,ASSISTANT,TECHNICAL",
+                        "仅允许非个人、非敏感、非 SQL 类问题联网；结果字段按 title/url/content 读取。",
+                        "GET",
+                        "BEARER_ENV",
+                        "Academic-Nexus test",
+                        "results[].title, results[].url, results[].content"
+                ),
+                new AiSearchDtos.SearchConfigTemplate(
+                        "SEARCH_ENGINE_COMPATIBLE",
+                        "Tavily / SerpAPI / Bing Web Search-compatible",
+                        "用于常见搜索聚合 API，可通过 {query} 占位或 q 参数拼接请求。",
+                        "CUSTOM",
+                        true,
+                        "https://api.example.com/search?q={query}",
+                        "SEARCH_API_KEY",
+                        "CHAT,ASSISTANT,TECHNICAL",
+                        "开启安全模式，搜索前过滤敏感问题，搜索后审查结果摘要。",
+                        "GET",
+                        "BEARER_ENV",
+                        "Academic-Nexus Docker deployment",
+                        "results[].title, results[].url/link, results[].content/summary"
+                ),
+                new AiSearchDtos.SearchConfigTemplate(
+                        "CUSTOM_HTTP",
+                        "自定义 HTTP 搜索接口",
+                        "适配自建 SearXNG 或内部搜索网关，后端期望返回 JSON results 数组。",
+                        "CUSTOM",
+                        true,
+                        "http://searxng-core:8080/search?q={query}&format=json",
+                        "",
+                        "CHAT,ASSISTANT,TECHNICAL",
+                        "自定义接口也必须经过搜索前安全过滤和搜索结果安全审查。",
+                        "GET",
+                        "OPTIONAL_BEARER_ENV",
+                        "Academic-Nexus test",
+                        "results[].title, results[].url/link, results[].content/summary"
+                )
+        );
+    }
+
     public AiSearchDtos.SearchTestResponse search(String username, String scene, String query) {
         AiSearchDtos.SearchConfig current = config();
         String safeScene = scene == null || scene.isBlank() ? "ADMIN_TEST" : scene.trim().toUpperCase(Locale.ROOT);

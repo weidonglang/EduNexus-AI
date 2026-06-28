@@ -43,7 +43,14 @@ class BatchUserImportClosureTests extends HttpRegressionTestSupport {
         assertThat(count("select count(*) from student where student_no = ? and class_name = ?", student, className)).isEqualTo(1);
         assertThat(count("select count(*) from batch_task where task_type = 'USER_IMPORT' and operator = ?", admin)).isGreaterThanOrEqualTo(1);
         assertThat(count("select count(*) from operation_audit_log where action = 'BATCH_USER_IMPORT_COMMIT' and operator = ?", admin)).isGreaterThanOrEqualTo(1);
-        assertThat(login(student)).isNotBlank();
+        String studentToken = login(student);
+        assertThat(studentToken).isNotBlank();
+
+        JsonNode myClass = json(get("/api/students/me/class", studentToken), HttpStatus.OK);
+        assertThat(myClass.at("/data/className").asText()).isEqualTo(className);
+        Long classId = jdbcTemplate.queryForObject("select id from academic_class where class_name = ?", Long.class, className);
+        JsonNode classStudents = json(get("/api/admin/classes/" + classId + "/students", token), HttpStatus.OK);
+        assertThat(classStudents.at("/data").toString()).contains(student, className);
     }
 
     @Test

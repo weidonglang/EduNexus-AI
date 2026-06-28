@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   aiModelsApi,
   aiSafetyConfigsApi,
+  aiSafetyTemplatesApi,
   aiSearchConfigApi,
+  aiSearchTemplatesApi,
   createAiModelApi,
+  deleteAiModelApi,
   disableAiModelApi,
   enableAiModelApi,
   setDefaultAiModelApi,
+  testAiSafetyApi,
   testAiModelApi,
   testAiSearchApi,
   updateAiModelApi,
@@ -18,8 +22,11 @@ import {
   type AiSafetyConfig,
   type AiModelRecord,
   type AiModelRequest,
+  type SafetyTemplate,
   type SearchConfig,
   type SearchResult,
+  type SearchConfigTemplate,
+  type SafetyTestResponse,
 } from '@/api/aiModel'
 
 const loading = ref(false)
@@ -33,7 +40,15 @@ const searchSaving = ref(false)
 const searchTesting = ref(false)
 const searchQuery = ref('Spring Cloud Alibaba Nacos Discovery 最新用法')
 const searchResults = ref<SearchResult[]>([])
+const searchTemplates = ref<SearchConfigTemplate[]>([])
+const searchTemplateCode = ref('LOCAL_DEMO')
 const safetyConfigs = ref<AiSafetyConfig[]>([])
+const safetyTemplates = ref<SafetyTemplate[]>([])
+const safetyTemplateCode = ref('BALANCED')
+const safetyTestScene = ref('AI_INPUT')
+const safetyTestContent = ref('示例敏感词A')
+const safetyTestResult = ref<SafetyTestResponse>()
+const safetyTesting = ref(false)
 const safetySaving = ref(false)
 
 const modelForm = reactive<AiModelRequest>({
@@ -61,7 +76,13 @@ onMounted(loadAll)
 async function loadAll() {
   loading.value = true
   try {
-    const results = await Promise.allSettled([aiModelsApi(), aiSearchConfigApi(), aiSafetyConfigsApi()])
+    const results = await Promise.allSettled([
+      aiModelsApi(),
+      aiSearchConfigApi(),
+      aiSafetyConfigsApi(),
+      aiSearchTemplatesApi(),
+      aiSafetyTemplatesApi(),
+    ])
     if (results[0].status === 'fulfilled') {
       models.value = results[0].value.data
     }
@@ -70,6 +91,12 @@ async function loadAll() {
     }
     if (results[2].status === 'fulfilled') {
       safetyConfigs.value = results[2].value.data
+    }
+    if (results[3].status === 'fulfilled') {
+      searchTemplates.value = results[3].value.data
+    }
+    if (results[4].status === 'fulfilled') {
+      safetyTemplates.value = results[4].value.data
     }
     const failed = results.some((result) => result.status === 'rejected')
     if (failed) {
@@ -145,6 +172,23 @@ async function toggleModel(row: AiModelRecord) {
   }
 }
 
+async function deleteModel(row: AiModelRecord) {
+  try {
+    await ElMessageBox.confirm(`确认删除模型“${row.name}”？历史日志会保留模型名称，列表将不再展示。`, '删除模型', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+    await deleteAiModelApi(row.id)
+    ElMessage.success('模型已删除')
+    await loadAll()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(resolveErrorMessage(error, '模型删除失败'))
+    }
+  }
+}
+
 async function setDefault(row: AiModelRecord) {
   try {
     await setDefaultAiModelApi(row.id)
@@ -189,6 +233,22 @@ async function saveSearchConfig() {
   }
 }
 
+function applySearchTemplate() {
+  if (!searchConfig.value) return
+  const template = searchTemplates.value.find((item) => item.code === searchTemplateCode.value)
+  if (!template) return
+  Object.assign(searchConfig.value, {
+    enabled: template.enabled,
+    provider: template.provider,
+    baseUrl: template.baseUrl,
+    apiKeyEnv: template.apiKeyEnv,
+    allowedScenes: template.allowedScenes,
+    safetyPolicy: template.safetyPolicy,
+  })
+  searchQuery.value = template.testQuery
+  ElMessage.success(`已应用模板：${template.name}`)
+}
+
 async function testSearch() {
   searchTesting.value = true
   try {
@@ -200,6 +260,31 @@ async function testSearch() {
     ElMessage.error(resolveErrorMessage(error, '搜索测试失败'))
   } finally {
     searchTesting.value = false
+  }
+}
+
+function applySafetyTemplate() {
+  const template = safetyTemplates.value.find((item) => item.code === safetyTemplateCode.value)
+  if (!template) return
+  safetyConfigs.value = safetyConfigs.value.map((item) => ({
+    ...item,
+    enabled: template.enabled,
+    strategy: template.strategy,
+    description: `${template.name}：${template.description}`,
+  }))
+  ElMessage.success(`已应用安全审查模板：${template.name}`)
+}
+
+async function testSafety() {
+  safetyTesting.value = true
+  try {
+    const response = await testAiSafetyApi(safetyTestScene.value, safetyTestContent.value)
+    safetyTestResult.value = response.data
+    response.data.success ? ElMessage.success(response.data.message) : ElMessage.warning(response.data.message)
+  } catch (error) {
+    ElMessage.error(resolveErrorMessage(error, '安全审查测试失败'))
+  } finally {
+    safetyTesting.value = false
   }
 }
 
@@ -266,12 +351,13 @@ function resolveErrorMessage(error: unknown, fallback: string) {
             <el-tag :type="statusTag(row.lastStatus)">{{ row.lastStatus || '未测试' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="330" fixed="right">
           <template #default="{ row }">
             <el-button text type="primary" @click="openEdit(row)">编辑</el-button>
             <el-button text @click="toggleModel(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
             <el-button text :disabled="row.defaultModel || !row.enabled" @click="setDefault(row)">默认</el-button>
             <el-button text :loading="testingId === row.id" @click="testModel(row)">测试</el-button>
+            <el-button text type="danger" :disabled="row.defaultModel || row.enabled" @click="deleteModel(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -283,6 +369,17 @@ function resolveErrorMessage(error: unknown, fallback: string) {
         <el-switch v-model="searchConfig.enabled" active-text="启用" inactive-text="停用" />
       </div>
       <el-form label-width="110px" class="compact-form">
+        <el-form-item label="预设模板">
+          <div class="template-row">
+            <el-select v-model="searchTemplateCode" class="full-field">
+              <el-option v-for="item in searchTemplates" :key="item.code" :label="item.name" :value="item.code">
+                <span>{{ item.name }}</span>
+                <small class="template-hint">{{ item.description }}</small>
+              </el-option>
+            </el-select>
+            <el-button @click="applySearchTemplate">应用模板</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="搜索提供方">
           <el-select v-model="searchConfig.provider" class="full-field">
             <el-option label="本地演示" value="LOCAL_DEMO" />
@@ -311,6 +408,15 @@ function resolveErrorMessage(error: unknown, fallback: string) {
         <el-input v-model="searchQuery" />
         <el-button :loading="searchTesting" @click="testSearch">测试搜索</el-button>
       </div>
+      <el-alert
+        v-if="searchConfig.lastStatus || searchConfig.lastError"
+        class="result-alert"
+        :type="searchConfig.lastStatus === 'UP' ? 'success' : searchConfig.lastStatus === 'DOWN' ? 'error' : 'info'"
+        :title="searchConfig.lastStatus === 'UP' ? '最近测试成功' : '最近测试状态'"
+        :description="searchConfig.lastError || `耗时 ${searchConfig.lastLatencyMs || 0} ms`"
+        show-icon
+        :closable="false"
+      />
       <el-table v-if="searchResults.length" :data="searchResults" class="result-table">
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column prop="link" label="链接" min-width="260" show-overflow-tooltip />
@@ -322,6 +428,15 @@ function resolveErrorMessage(error: unknown, fallback: string) {
       <div class="panel-title-row">
         <h2>AI 安全策略</h2>
         <el-button type="primary" :loading="safetySaving" @click="saveSafetyConfigs">保存策略</el-button>
+      </div>
+      <div class="template-row safety-template-row">
+        <el-select v-model="safetyTemplateCode" class="full-field">
+          <el-option v-for="item in safetyTemplates" :key="item.code" :label="item.name" :value="item.code">
+            <span>{{ item.name }}</span>
+            <small class="template-hint">{{ item.scenario }}</small>
+          </el-option>
+        </el-select>
+        <el-button @click="applySafetyTemplate">应用模板</el-button>
       </div>
       <el-table :data="safetyConfigs" empty-text="暂无安全策略">
         <el-table-column prop="scene" label="场景" width="160" />
@@ -342,6 +457,20 @@ function resolveErrorMessage(error: unknown, fallback: string) {
         </el-table-column>
         <el-table-column prop="description" label="说明" min-width="260" show-overflow-tooltip />
       </el-table>
+      <div class="search-test-row safety-test-row">
+        <el-input v-model="safetyTestScene" placeholder="测试场景，例如 AI_INPUT" />
+        <el-input v-model="safetyTestContent" placeholder="测试文本" />
+        <el-button :loading="safetyTesting" @click="testSafety">测试安全审查</el-button>
+      </div>
+      <el-alert
+        v-if="safetyTestResult"
+        class="result-alert"
+        :type="safetyTestResult.success ? 'success' : 'warning'"
+        :title="safetyTestResult.message"
+        :description="`${safetyTestResult.action} / ${safetyTestResult.riskLevel}。${safetyTestResult.suggestion}`"
+        show-icon
+        :closable="false"
+      />
     </article>
   </section>
 
@@ -408,13 +537,38 @@ function resolveErrorMessage(error: unknown, fallback: string) {
   margin-top: 12px;
 }
 
+.template-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+}
+
+.template-hint {
+  margin-left: 10px;
+  color: var(--nexus-text-muted);
+}
+
+.safety-template-row {
+  margin-bottom: 12px;
+}
+
+.safety-test-row {
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+}
+
+.result-alert {
+  margin-top: 12px;
+}
+
 .result-table {
   margin-top: 12px;
 }
 
 @media (max-width: 720px) {
   .panel-title-row,
-  .search-test-row {
+  .search-test-row,
+  .template-row {
     grid-template-columns: 1fr;
     display: grid;
   }

@@ -35,6 +35,7 @@ public class CourseSelectionController {
     private final QueryCacheService queryCacheService;
     private final AuditLogService auditLogService;
     private final TermService termService;
+    private final CourseSelectionStockService stockService;
 
     public CourseSelectionController(
             CourseGrabPort courseGrabPort,
@@ -42,7 +43,8 @@ public class CourseSelectionController {
             CourseSelectionWriteMapper selectionWriteMapper,
             QueryCacheService queryCacheService,
             AuditLogService auditLogService,
-            TermService termService
+            TermService termService,
+            CourseSelectionStockService stockService
     ) {
         this.courseGrabPort = courseGrabPort;
         this.selectionReadMapper = selectionReadMapper;
@@ -50,6 +52,7 @@ public class CourseSelectionController {
         this.queryCacheService = queryCacheService;
         this.auditLogService = auditLogService;
         this.termService = termService;
+        this.stockService = stockService;
     }
 
     @GetMapping("/offerings")
@@ -155,6 +158,7 @@ public class CourseSelectionController {
         }
         if (offeringId != null) {
             queryCacheService.evict("selection:offering:" + offeringId + ":remaining");
+            stockService.rebuildFromDatabase(offeringId, authentication.getName(), "REBUILD_STOCK_AFTER_DROP");
         }
         auditLogService.record(authentication.getName(), "DROP_COURSE", "COURSE_SELECTION", selectionId,
                 "offeringId=" + offeringId, TraceIdHolder.get());

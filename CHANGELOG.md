@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.0.0 - Stable Complete Edition - 2026-06-28
+
+### Final stabilization
+
+- Fixed Redis stock rebuild after course drop by rebuilding `selection:offering:{offeringId}:remaining` from database capacity and selected count.
+- Added final three-role visibility assertions for batch user import and batch course offering import.
+- Added AI model safe delete workflow with soft deletion, default-model protection, enabled-model protection, audit records, and regression tests.
+- Added web search configuration templates, safety review templates, and observable configuration test results.
+- Fixed dashboard statistics to be role-scoped for students, teachers, and admins.
+- Added complete Docker deployment guide and v2.0.0 stable release QA report.
+
+### Deployment
+
+- Clarified Docker host ports versus container ports.
+- Documented Maven mirror troubleshooting for Docker builds, including `bad_record_mac` network failures.
+- Added reproducible Docker startup checklist for Windows, Linux, and macOS.
+
+### Stable closure
+
+- Completed #76-#104.
+- Completed #106-#108.
+- Promoted the project to v2.0.0 Stable Complete Edition.
+
 ## v1.4.1-final-closure - 2026-06-28
 
 - Added real CSV preview/commit flows for batch user import, including student profile/class data, batch tasks, audit records, and regression tests.

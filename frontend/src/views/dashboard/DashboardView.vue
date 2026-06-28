@@ -28,6 +28,10 @@ const auth = useAuthStore()
 const menu = useMenuStore()
 const loading = ref(false)
 const overview = ref<DashboardOverview>({
+  roleView: 'STUDENT',
+  term: '',
+  scopeLabel: '个人',
+  cards: [],
   courseCount: 0,
   pendingEvaluationCount: 0,
   examCount: 0,
@@ -50,18 +54,15 @@ const days = [
 ]
 const slots = ['1-2', '3-4', '5-6', '7-8']
 
-const statCards = computed(() => [
-  { label: '本学期课程', value: overview.value.courseCount, suffix: '门' },
-  { label: '待完成评价', value: overview.value.pendingEvaluationCount, suffix: '项' },
-  { label: '考试安排', value: overview.value.examCount, suffix: '场' },
-  { label: '已获学分', value: overview.value.earnedCredits, suffix: '分' },
-])
-
 const roleStatCards = computed(() => [
-  { label: isAdmin.value ? '教学班数量' : '本学期课程', value: overview.value.courseCount, suffix: isAdmin.value ? '个' : '门' },
-  { label: isTeacher.value ? '待维护事项' : '待完成评价', value: overview.value.pendingEvaluationCount, suffix: '项' },
-  { label: '考试安排', value: overview.value.examCount, suffix: '场' },
-  { label: isStudent.value ? '已获学分' : '管理权限', value: isStudent.value ? overview.value.earnedCredits : 1, suffix: isStudent.value ? '分' : '组' },
+  ...(overview.value.cards.length
+    ? overview.value.cards
+    : [
+        { key: 'courses', label: '本学期课程', value: overview.value.courseCount, suffix: '门', scope: '当前用户' },
+        { key: 'pending', label: '待完成评价', value: overview.value.pendingEvaluationCount, suffix: '项', scope: '当前用户' },
+        { key: 'exams', label: '考试安排', value: overview.value.examCount, suffix: '场', scope: '当前用户' },
+        { key: 'credits', label: '已获学分', value: overview.value.earnedCredits, suffix: '分', scope: '当前用户' },
+      ]),
 ])
 
 const quickApps = computed(() => {
@@ -167,6 +168,7 @@ function priorityScore(path: string, priority: string[]) {
           :label="item.label"
           :value="item.value"
           :suffix="item.suffix"
+          :hint="item.scope"
           :tone="index === 1 ? 'warning' : index === 2 ? 'info' : index === 3 ? 'success' : 'primary'"
         />
       </section>

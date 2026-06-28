@@ -2,6 +2,7 @@ package weidonglang.tianshiwebside.ai;
 
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -74,6 +75,14 @@ public class AiModelAdminController {
         return ApiResponse.success();
     }
 
+    @DeleteMapping("/models/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id, Principal principal) {
+        AiModelRecord model = modelRegistryService.require(id);
+        modelRegistryService.softDelete(id, operator(principal));
+        audit(principal, "DELETE_AI_MODEL", id, model.name() + "; softDelete=true");
+        return ApiResponse.success();
+    }
+
     @PostMapping("/models/{id}/set-default")
     public ApiResponse<Void> setDefault(@PathVariable Long id, Principal principal) {
         modelRegistryService.setDefault(id);
@@ -119,6 +128,11 @@ public class AiModelAdminController {
     @GetMapping("/search/config")
     public ApiResponse<AiSearchDtos.SearchConfig> searchConfig() {
         return ApiResponse.success(searchService.config());
+    }
+
+    @GetMapping("/search/templates")
+    public ApiResponse<List<AiSearchDtos.SearchConfigTemplate>> searchTemplates() {
+        return ApiResponse.success(searchService.templates());
     }
 
     @PutMapping("/search/config")

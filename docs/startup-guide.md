@@ -36,6 +36,8 @@ Maven 依赖下载遇到 `bad_record_mac` 或 Central 超时，使用：
 
 更完整排障见 `docs/docker-troubleshooting.md`。
 
+v2.0.0 完整 Docker 复刻部署教程见 `docs/docker-deployment-guide.md`。联网搜索与 AI 安全审查模板配置见 `docs/ai-search-and-safety-config.md`。
+
 ## 推荐方式：MySQL + demo profile
 
 适合正式演示。使用 MySQL 数据库，并自动初始化学院、专业、班级、学生、教师、管理员、课程、成绩、考试、公告等演示数据。

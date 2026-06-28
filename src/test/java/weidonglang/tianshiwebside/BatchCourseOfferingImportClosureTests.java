@@ -50,6 +50,8 @@ class BatchCourseOfferingImportClosureTests extends HttpRegressionTestSupport {
 
         JsonNode offerings = json(get("/api/course-selection/offerings?term=" + term + "&page=1&size=10", login(student)), HttpStatus.OK);
         assertThat(offerings.at("/data/records").toString()).contains(code, "批量闭环课程");
+        JsonNode teacherOfferings = json(get("/api/teacher/offerings?term=" + term, login(teacher)), HttpStatus.OK);
+        assertThat(teacherOfferings.at("/data").toString()).contains(code, term, "批量任课教师-" + suffix);
         assertThat(count("select count(*) from operation_audit_log where action in ('CREATE_COURSE_BY_IMPORT','CREATE_OFFERING_BY_IMPORT') and operator = ?", admin))
                 .isGreaterThanOrEqualTo(2);
     }

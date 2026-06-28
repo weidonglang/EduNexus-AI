@@ -17,6 +17,39 @@
 
 > Academic-Nexus 是一个适合课程设计/本科毕设的 Java Spring Boot + Vue 3 教学综合信息服务平台，集成学生选课、Redis 抢课、成绩考试、课表、教学评价、AI 教务助手、自然语言只读查库、学业画像、压测报告和后台审计工具。
 
+## Quick Start with Docker
+
+```bash
+git clone https://github.com/weidonglang/Academic-Nexus.git
+cd Academic-Nexus
+cp .env.example .env
+./scripts/check-ports.sh
+./scripts/docker-build.sh
+docker compose up -d
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/weidonglang/Academic-Nexus.git
+cd Academic-Nexus
+copy .env.example .env
+.\scripts\check-ports.ps1
+.\scripts\docker-build.ps1
+docker compose up -d
+```
+
+Default URLs:
+
+- Frontend: http://localhost:5174
+- Main service: http://localhost:8088
+- AI service: http://localhost:18090/internal/ai/status
+- Nacos: http://localhost:18848/nacos
+- MySQL: `localhost:13306`
+- Redis: `localhost:16379`
+
+For detailed deployment instructions, see [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md).
+
 ## 项目简介
 
 本项目围绕高校教务系统的核心流程实现了一套前后端分离应用，覆盖学生、教师、管理员三类角色。系统包含选课、成绩、考试、课表、学籍异动、报名审核、通知公告、教学评价、数据库只读浏览、Redis 抢课、压测报告和 AI 辅助教务等模块。
@@ -134,11 +167,14 @@ Academic-Nexus can be used as a reference for the following undergraduate projec
 | [docs/project-positioning.md](docs/project-positioning.md) | 项目定位、适用场景和边界说明 |
 | [docs/search-keywords.md](docs/search-keywords.md) | 中英文搜索关键词和常见查询 |
 | [docs/startup-guide.md](docs/startup-guide.md) | 本地启动与演示说明 |
+| [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md) | v2.0.0 Docker 复刻部署主教程 |
 | [docs/deployment-guide.md](docs/deployment-guide.md) | v1.4.0 Docker、jar 和 release 包部署说明 |
 | [docs/docker-troubleshooting.md](docs/docker-troubleshooting.md) | Docker Maven 下载、镜像源和端口冲突排障 |
+| [docs/ai-search-and-safety-config.md](docs/ai-search-and-safety-config.md) | 联网搜索、安全审查模板和测试说明 |
 | [docs/batch-operations-guide.md](docs/batch-operations-guide.md) | 批量导入、批量审核、数据归档和任务中心说明 |
 | [docs/load-test-guide.md](docs/load-test-guide.md) | 压测面板 API/MySQL 双模式说明 |
 | [docs/spring-cloud-verification.md](docs/spring-cloud-verification.md) | Spring Cloud、Nacos、OpenFeign 验证记录 |
+| [docs/qa/v2.0.0-stable-release-report.md](docs/qa/v2.0.0-stable-release-report.md) | #76-#104、#106-#108 v2.0.0 稳定版发布验收报告 |
 | [docs/qa/v1.4.1-final-closure-report.md](docs/qa/v1.4.1-final-closure-report.md) | #76-#104 v1.4.1 最终闭环与 Docker 复刻验证报告 |
 | [docs/qa/v1.4-final-polish-report.md](docs/qa/v1.4-final-polish-report.md) | #61-#74 v1.4.0 最终打磨验收报告 |
 | [docs/qa/v1.3-issue-closure-report.md](docs/qa/v1.3-issue-closure-report.md) | #39-#59 v1.3.0 修复、验收和边界报告 |

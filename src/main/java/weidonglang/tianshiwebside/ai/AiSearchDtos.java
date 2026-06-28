@@ -50,4 +50,21 @@ public class AiSearchDtos {
 
     public record ModelTestResponse(boolean success, String status, Long latencyMs, String message) {
     }
+
+    public record SearchConfigTemplate(
+            String code,
+            String name,
+            String description,
+            String provider,
+            boolean enabled,
+            String baseUrl,
+            String apiKeyEnv,
+            String allowedScenes,
+            String safetyPolicy,
+            String method,
+            String authMode,
+            String testQuery,
+            String resultMapping
+    ) {
+    }
 }

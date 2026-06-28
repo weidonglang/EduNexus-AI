@@ -1,8 +1,10 @@
-# Academic-Nexus v1.4.1 Deployment Guide
+# Academic-Nexus v2.0.0 Deployment Guide
 
-Updated: 2026-06-27
+Updated: 2026-06-28
 
-This guide covers the deployable v1.4.1 package, Docker Compose deployment, and the plain jar mode.
+This guide covers the deployable v2.0.0 package, Docker Compose deployment, and the plain jar mode.
+
+For the complete Docker-first reproducible deployment tutorial, see `docs/docker-deployment-guide.md`.
 
 ## Requirements
 
@@ -67,16 +69,16 @@ docker compose down -v
 
 ## Jar Package Deployment
 
-Build the v1.4.1 release zip:
+Build the v2.0.0 release zip:
 
 ```powershell
-.\scripts\build-release.ps1 -Version 1.4.1
+.\scripts\build-release.ps1 -Version 2.0.0
 ```
 
 Expected artifact:
 
 ```text
-release/Academic-Nexus-1.4.1.zip
+release/Academic-Nexus-2.0.0.zip
 ```
 
 The zip contains:
@@ -168,10 +170,10 @@ cd ..
 .\scripts\health-check.ps1
 .\scripts\check-ports.ps1
 .\scripts\docker-build.ps1
-.\scripts\build-release.ps1 -Version 1.4.1
+.\scripts\build-release.ps1 -Version 2.0.0
 ```
 
-Expected results for v1.4.1:
+Expected results for v2.0.0:
 
 - Compose config resolves successfully.
 - `npm audit` reports 0 vulnerabilities.

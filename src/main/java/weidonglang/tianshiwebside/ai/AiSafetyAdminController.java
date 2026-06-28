@@ -17,6 +17,7 @@ import weidonglang.tianshiwebside.audit.AuditLogService;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 import weidonglang.tianshiwebside.common.api.PageResponse;
 import weidonglang.tianshiwebside.common.api.Pagination;
+import weidonglang.tianshiwebside.common.error.BusinessException;
 import weidonglang.tianshiwebside.common.trace.TraceIdHolder;
 import weidonglang.tianshiwebside.governance.ContentModerationService;
 import weidonglang.tianshiwebside.governance.GovernanceController;
@@ -48,6 +49,22 @@ public class AiSafetyAdminController {
         return ApiResponse.success(moderationService.safetyConfigs());
     }
 
+    @GetMapping("/templates")
+    public ApiResponse<List<SafetyTemplate>> templates() {
+        return ApiResponse.success(List.of(
+                new SafetyTemplate("STRICT", "严格模式", "答辩演示、生产安全优先场景", true, "block",
+                        "高风险直接 BLOCK；中低风险也进入阻断策略；全部写 moderation log。", true, true),
+                new SafetyTemplate("BALANCED", "平衡模式", "日常教学业务默认推荐", true, "warn",
+                        "高风险由敏感词等级和策略触发；中低风险 WARN；全部写日志并允许人工排查。", false, true),
+                new SafetyTemplate("RELAXED", "宽松模式", "内网低风险演示环境", true, "review",
+                        "命中内容进入 REVIEW，不直接中断主要流程，保留人工复核线索。", true, true),
+                new SafetyTemplate("LOG_ONLY", "仅记录模式", "排查误杀或观察期", true, "log_only",
+                        "不拦截用户请求，所有命中只写日志，便于观察策略影响。", false, true),
+                new SafetyTemplate("DISABLED", "关闭模式", "临时排障，不建议长期使用", false, "log_only",
+                        "不执行策略拦截，仅返回 DISABLED 结果。", false, false)
+        ));
+    }
+
     @PutMapping("/config")
     public ApiResponse<List<ContentModerationService.SafetyConfig>> updateConfig(
             Principal principal,
@@ -62,12 +79,38 @@ public class AiSafetyAdminController {
     }
 
     @PostMapping("/test")
-    public ApiResponse<ContentModerationService.ModerationResult> test(
+    public ApiResponse<SafetyTestResponse> test(
             Principal principal,
             @Valid @RequestBody SafetyTestRequest request
     ) {
         String operator = principal == null ? "admin" : principal.getName();
-        return ApiResponse.success(moderationService.checkConfigured(request.scene(), request.content(), operator));
+        try {
+            ContentModerationService.ModerationResult result = moderationService.checkConfigured(request.scene(), request.content(), operator);
+            boolean blocked = "BLOCK".equals(result.action());
+            return ApiResponse.success(new SafetyTestResponse(
+                    !blocked,
+                    blocked,
+                    result.scene(),
+                    result.riskLevel(),
+                    result.action(),
+                    result.matchedWords(),
+                    blocked ? "安全审查已拦截测试内容" : "安全审查测试完成：" + result.action(),
+                    blocked ? "请检查敏感词、策略模板或改用人工复核模式" : "当前模板可按预期执行",
+                    Instant.now()
+            ));
+        } catch (BusinessException ex) {
+            return ApiResponse.success(new SafetyTestResponse(
+                    false,
+                    true,
+                    request.scene(),
+                    "HIGH",
+                    "BLOCK",
+                    "",
+                    ex.getMessage(),
+                    "严格模式命中高风险内容会阻断；如需观察不阻断，请使用仅记录模式",
+                    Instant.now()
+            ));
+        }
     }
 
     @GetMapping("/hits")
@@ -130,6 +173,31 @@ public class AiSafetyAdminController {
     public record SafetyTestRequest(
             @NotBlank @Size(max = 80) String scene,
             @NotBlank @Size(max = 4000) String content
+    ) {
+    }
+
+    public record SafetyTemplate(
+            String code,
+            String name,
+            String scenario,
+            boolean enabled,
+            String strategy,
+            String description,
+            boolean manualReview,
+            boolean moderationLog
+    ) {
+    }
+
+    public record SafetyTestResponse(
+            boolean success,
+            boolean blocked,
+            String scene,
+            String riskLevel,
+            String action,
+            String matchedWords,
+            String message,
+            String suggestion,
+            Instant checkedAt
     ) {
     }
 }
