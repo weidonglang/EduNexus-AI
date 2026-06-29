@@ -250,6 +250,116 @@ function regenerateLastAnswer() {
   }
   void send(lastUser.content, lastUser.thinkingMode ?? thinkingMode.value)
 }
+
+function renderMessageContent(message: AiChatMessage) {
+  if (message.role !== 'assistant') {
+    return `<p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>`
+  }
+  return renderMarkdown(message.content)
+}
+
+function renderMarkdown(source: string) {
+  const lines = source.replace(/\r\n/g, '\n').split('\n')
+  const blocks: string[] = []
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (!line.trim()) continue
+
+    if (line.trim().startsWith('```')) {
+      const codeLines: string[] = []
+      index += 1
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index])
+        index += 1
+      }
+      blocks.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+      continue
+    }
+
+    const heading = /^(#{1,4})\s+(.+)$/.exec(line)
+    if (heading) {
+      const level = heading[1].length + 1
+      blocks.push(`<h${level}>${renderInline(heading[2].trim())}</h${level}>`)
+      continue
+    }
+
+    const ordered = /^(\d+)\.\s+(.+)$/.exec(line)
+    if (ordered) {
+      const items: string[] = []
+      let cursor = index
+      while (cursor < lines.length) {
+        const match = /^(\d+)\.\s+(.+)$/.exec(lines[cursor])
+        if (!match) break
+        const itemLines = [match[2].trim()]
+        cursor += 1
+        while (
+          cursor < lines.length &&
+          lines[cursor].trim() &&
+          !/^(\d+)\.\s+/.test(lines[cursor]) &&
+          !/^[-*]\s+/.test(lines[cursor])
+        ) {
+          itemLines.push(lines[cursor].trim())
+          cursor += 1
+        }
+        while (cursor < lines.length && !lines[cursor].trim()) cursor += 1
+        items.push(`<li>${itemLines.map((itemLine) => renderInline(itemLine)).join('<br>')}</li>`)
+      }
+      blocks.push(`<ol>${items.join('')}</ol>`)
+      index = cursor - 1
+      continue
+    }
+
+    const unordered = /^[-*]\s+(.+)$/.exec(line)
+    if (unordered) {
+      const items: string[] = []
+      let cursor = index
+      while (cursor < lines.length) {
+        const match = /^[-*]\s+(.+)$/.exec(lines[cursor])
+        if (!match) break
+        items.push(`<li>${renderInline(match[1].trim())}</li>`)
+        cursor += 1
+      }
+      blocks.push(`<ul>${items.join('')}</ul>`)
+      index = cursor - 1
+      continue
+    }
+
+    const paragraphLines = [line.trim()]
+    let cursor = index + 1
+    while (
+      cursor < lines.length &&
+      lines[cursor].trim() &&
+      !/^#{1,4}\s+/.test(lines[cursor]) &&
+      !/^(\d+)\.\s+/.test(lines[cursor]) &&
+      !/^[-*]\s+/.test(lines[cursor]) &&
+      !lines[cursor].trim().startsWith('```')
+    ) {
+      paragraphLines.push(lines[cursor].trim())
+      cursor += 1
+    }
+    blocks.push(`<p>${paragraphLines.map((paragraphLine) => renderInline(paragraphLine)).join('<br>')}</p>`)
+    index = cursor - 1
+  }
+  return blocks.join('')
+}
+
+function renderInline(source: string) {
+  let html = escapeHtml(source)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+  html = html.replace(/\[([^\]]+)]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+  return html
+}
+
+function escapeHtml(source: string) {
+  return source
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 </script>
 
 <template>
@@ -315,7 +425,7 @@ function regenerateLastAnswer() {
         <div v-if="messages.length === 0" class="chat-empty">暂无历史消息，发送第一条消息开始会话。</div>
         <div v-for="message in messages" :key="message.id" :class="['chat-message', message.role]">
           <Bot v-if="message.role === 'assistant'" :size="18" />
-          <p>{{ message.content }}</p>
+          <div class="message-content markdown-body" v-html="renderMessageContent(message)" />
           <small v-if="message.serviceMode || message.modelName">
             {{ message.serviceMode }}<template v-if="message.modelName"> / {{ message.modelName }}</template>
             <template v-if="message.searchUsed"> / 已联网搜索</template>
@@ -440,16 +550,79 @@ function regenerateLastAnswer() {
   justify-self: start;
 }
 
-.chat-message p {
-  margin: 0;
-  white-space: pre-wrap;
-  line-height: 1.7;
-}
-
 .chat-message small {
   display: block;
   margin-top: 6px;
   color: #6b7280;
+}
+
+.message-content {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.message-content :deep(p),
+.message-content :deep(ol),
+.message-content :deep(ul),
+.message-content :deep(pre),
+.message-content :deep(h2),
+.message-content :deep(h3),
+.message-content :deep(h4),
+.message-content :deep(h5) {
+  margin: 0;
+}
+
+.message-content :deep(p + p),
+.message-content :deep(p + ol),
+.message-content :deep(p + ul),
+.message-content :deep(ol + p),
+.message-content :deep(ul + p),
+.message-content :deep(pre + p) {
+  margin-top: 10px;
+}
+
+.message-content :deep(ol),
+.message-content :deep(ul) {
+  padding-left: 22px;
+}
+
+.message-content :deep(li + li) {
+  margin-top: 12px;
+}
+
+.message-content :deep(strong) {
+  font-weight: 700;
+}
+
+.message-content :deep(a) {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.message-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.message-content :deep(code) {
+  border-radius: 4px;
+  background: #e5e7eb;
+  padding: 1px 5px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.92em;
+}
+
+.message-content :deep(pre) {
+  overflow-x: auto;
+  border-radius: 6px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 10px 12px;
+}
+
+.message-content :deep(pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
 }
 
 .chat-status-bar {
