@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.0.1 - AI, Docker and Frontend UX Fixes - Unreleased
+
+### Branding
+
+- Renamed the project display name from Academic-Nexus to **EduNexus AI**.
+- Added English positioning: **AI-powered Academic Management Platform**.
+- Updated README, frontend title, login page, shell footer, Docker docs, AI search docs, AI prompts and release notes draft to use EduNexus AI.
+- Kept internal Java package names, API paths, historical Docker service names and repository path unchanged for compatibility.
+
 ## v2.0.0 - Stable Complete Edition - 2026-06-28
 
 ### Final stabilization
@@ -84,4 +93,3 @@
 
 - Added Spring Cloud OpenFeign, LoadBalancer, Nacos discovery wiring, AI model registry, search safety configuration, and release packaging.
 - Closed the #4-#35 v1.2 issue matrix with backend tests, frontend build checks, Docker Compose verification, and release docs.
-
