@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $FrontendDir = Join-Path $Root "frontend"
 $ReleaseRoot = Join-Path $Root "release"
-$PackageName = "Academic-Nexus-$Version"
+$PackageName = "EduNexus-AI-$Version"
 $PackageDir = Join-Path $ReleaseRoot $PackageName
 $ZipPath = Join-Path $ReleaseRoot "$PackageName.zip"
 
@@ -98,13 +98,15 @@ Invoke-Step "Assemble release directory" {
     Copy-RequiredFile -Source (Join-Path $Root "docs/issue-completion-matrix.md") -Destination (Join-Path $PackageDir "issue-completion-matrix.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/qa/v1.3-issue-closure-report.md") -Destination (Join-Path $PackageDir "v1.3-issue-closure-report.md")
     Copy-RequiredFile -Source (Join-Path $Root "docs/qa/v1.4-final-polish-report.md") -Destination (Join-Path $PackageDir "v1.4-final-polish-report.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/qa/v2.0.1-release-report.md") -Destination (Join-Path $PackageDir "v2.0.1-release-report.md")
+    Copy-RequiredFile -Source (Join-Path $Root "docs/releases/v2.0.1-release-notes-draft.md") -Destination (Join-Path $PackageDir "v2.0.1-release-notes.md")
     Copy-RequiredFile -Source (Join-Path $Root "CHANGELOG.md") -Destination (Join-Path $PackageDir "CHANGELOG.md")
     Copy-RequiredFile -Source (Join-Path $Root "docker-compose.yml") -Destination (Join-Path $PackageDir "docker-compose.yml")
     Copy-RequiredFile -Source (Join-Path $Root "scripts/health-check.ps1") -Destination (Join-Path $PackageDir "health-check.ps1")
     Copy-RequiredFile -Source (Join-Path $Root "scripts/health-check.sh") -Destination (Join-Path $PackageDir "health-check.sh")
 
     @'
-# Academic-Nexus release environment
+# EduNexus AI release environment
 SPRING_PROFILES_ACTIVE=demo
 SERVER_PORT=8080
 AI_SERVICE_PORT=8090
@@ -157,13 +159,13 @@ if (-not $env:AI_SERVICE_URL -and $env:AI_SERVICE_PORT) {
 $webPort = if ($env:SERVER_PORT) { $env:SERVER_PORT } else { "8080" }
 $aiPort = if ($env:AI_SERVICE_PORT) { $env:AI_SERVICE_PORT } else { "8090" }
 
-Write-Host "Starting Academic-Nexus AI service on port $aiPort"
+Write-Host "Starting EduNexus AI service on port $aiPort"
 $env:SERVER_PORT = $aiPort
 $ai = Start-Process -FilePath "java" -ArgumentList @("-jar", (Join-Path $BaseDir "academic-nexus-ai-service.jar")) -PassThru -WindowStyle Hidden
 
 try {
     $env:SERVER_PORT = $webPort
-    Write-Host "Starting Academic-Nexus web application on port $webPort"
+    Write-Host "Starting EduNexus AI web application on port $webPort"
     java -jar (Join-Path $BaseDir "academic-nexus-web.jar")
 } finally {
     if ($ai -and -not $ai.HasExited) {
@@ -180,9 +182,9 @@ endlocal
 '@ | Set-Content -Path (Join-Path $PackageDir "start-release.bat") -Encoding ASCII
 
     @"
-# Academic-Nexus $Version
+# EduNexus AI $Version
 
-This package contains the built Spring Boot web application and the companion AI service.
+This package contains the built Spring Boot web application and the companion AI service for EduNexus AI, an AI-powered academic management platform.
 
 ## Quick start
 
