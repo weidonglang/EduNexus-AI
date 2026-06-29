@@ -1,8 +1,10 @@
 # Academic-Nexus Docker Deployment Guide
 
-Updated: 2026-06-28
+Updated: 2026-06-29
 
 This guide is the v2.0.0 Docker deployment entrypoint for Academic-Nexus.
+
+v2.0.1 adds explicit SearXNG network and Ollama enablement notes. These notes are deployment-only changes; they do not require publishing a new release tag by Codex.
 
 ## 1. Scope
 
@@ -237,7 +239,102 @@ Invoke-WebRequest http://localhost:8088
 Invoke-WebRequest http://localhost:18090/internal/ai/status
 ```
 
-## 12. FAQ
+## 12. SearXNG Real Search In Docker
+
+Academic-Nexus backend containers access SearXNG from the container network. The Base URL configured in the admin page is from the `academic-main` container perspective, not from the browser perspective.
+
+Browser access such as `http://localhost:8080` only proves the host can reach a service. It does not prove `academic-main` can reach `localhost:8080`, because `localhost` inside `academic-main` means the backend container itself.
+
+Find the backend container network:
+
+```powershell
+docker inspect academic-main --format='{{range $k,$v := .NetworkSettings.Networks}}{{println $k}}{{end}}'
+```
+
+Example output:
+
+```text
+tianshiwebside_default
+```
+
+Connect SearXNG to the same Docker network:
+
+```powershell
+docker network connect --alias searxng tianshiwebside_default searxng-core
+```
+
+Verify from inside `academic-main`:
+
+```powershell
+docker exec academic-main wget -S -O- "http://searxng:8080/search?q=OpenAI&format=json"
+```
+
+Recommended admin page configuration:
+
+```text
+搜索提供方：SearXNG
+Base URL：http://searxng:8080/search?q={query}&format=json
+API Key 环境变量：留空
+```
+
+## 13. Enable Ollama For Docker AI Service
+
+`academic-ai-service` being online does not mean Ollama is enabled. If `OLLAMA_ENABLED=false`, the UI showing local fallback mode is expected.
+
+Create `.env` first:
+
+```powershell
+copy .env.example .env
+```
+
+Linux/macOS:
+
+```bash
+cp .env.example .env
+```
+
+Enable Ollama in `.env`:
+
+```env
+OLLAMA_ENABLED=true
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_CHAT_MODEL=qwen3:8b
+OLLAMA_SQL_MODEL=qwen2.5-coder:7b
+```
+
+After changing `.env`, recreate the related containers:
+
+```powershell
+docker compose up -d --force-recreate academic-ai-service academic-main
+```
+
+Check environment variables inside the container:
+
+```powershell
+docker exec academic-ai-service printenv | findstr OLLAMA
+```
+
+Verify Ollama on the host:
+
+```powershell
+curl.exe http://localhost:11434/api/tags
+```
+
+Verify Ollama from inside the AI container:
+
+```powershell
+docker exec academic-ai-service wget -S -O- "http://host.docker.internal:11434/api/tags"
+```
+
+Check and pull models:
+
+```powershell
+ollama list
+ollama pull qwen3:8b
+ollama pull qwen2.5-coder:7b
+```
+
+## 14. FAQ
 
 Q1: MySQL port is occupied.
 
@@ -291,7 +388,7 @@ OLLAMA_ENABLED=false
 AI_SERVICE_URL=http://academic-ai-service:8090
 ```
 
-## 13. Stop And Clean
+## 15. Stop And Clean
 
 Stop and keep data:
 
@@ -311,7 +408,7 @@ Clean build cache:
 docker builder prune
 ```
 
-## 14. Upgrade
+## 16. Upgrade
 
 ```bash
 git pull
@@ -325,7 +422,7 @@ Watch Flyway migration:
 docker compose logs -f academic-main
 ```
 
-## 15. Acceptance Checklist
+## 17. Acceptance Checklist
 
 - [ ] `git clone` succeeded
 - [ ] `.env` was created from `.env.example`

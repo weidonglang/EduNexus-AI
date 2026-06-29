@@ -45,9 +45,10 @@ public class AiInternalController {
         if (selectedModel.isBlank()) {
             selectedModel = chatModel;
         }
+        String thinkingMode = normalizeThinkingMode(request.thinkingMode());
         String prompt = """
-                你是“天师教务系统”的 AI 聊天助手。请用中文回答。
-                如果用户说“咱们系统”“这个系统”“项目”，默认指天师教务系统。
+                你是“教学综合信息服务平台”的 AI 聊天助手。请用中文回答。
+                如果用户说“咱们系统”“这个系统”“项目”，默认指教学综合信息服务平台。
                 你可以介绍系统定位、用户角色、核心业务、AI 功能、Redis 抢课和压测能力。
                 注意：如果用户询问具体教务规则、个人成绩、选课资格、考试安排、申请审核结论等正式业务问题，应提醒其使用智能教务助手或对应业务页面，因为聊天答案不作为正式教务依据。
 
@@ -56,7 +57,7 @@ public class AiInternalController {
 
                 用户消息：
                 %s
-                """.formatted(systemOverview(), request.message());
+                """.formatted(systemOverview(), applyThinkingMode(request.message(), thinkingMode, selectedModel));
         var generated = ollamaClient.generate(selectedModel, prompt);
         String actualModel = selectedModel;
         String fallbackReason = "";
@@ -84,7 +85,8 @@ public class AiInternalController {
                 selectedModel,
                 actualModel,
                 fallback || !actualModel.equals(selectedModel),
-                fallbackReason.isBlank() ? null : fallbackReason
+                fallbackReason.isBlank() ? null : fallbackReason,
+                thinkingMode
         );
     }
 
@@ -154,7 +156,7 @@ public class AiInternalController {
 
     private String systemOverview() {
         return """
-                天师教务系统是一个面向高校教务场景的综合管理系统，用于演示学生、教师、管理员三类角色之间的业务互通。
+                教学综合信息服务平台是一个面向高校教务场景的综合管理系统，用于演示学生、教师、管理员三类角色之间的业务互通。
                 主要角色：
                 1. 学生：查看个人信息、课表、成绩、考试、通知，进行选课、抢课、教学评价、学籍异动申请、报名申请、查看学业画像。
                 2. 教师：查看任课课程、教学班学生、录入或维护成绩、查看考试安排和教学评价结果。
@@ -181,7 +183,7 @@ public class AiInternalController {
         String normalized = message == null ? "" : message.trim();
         if (normalized.contains("系统") || normalized.contains("项目") || normalized.contains("介绍")) {
             return """
-                    AI 聊天当前处于本地兜底模式。天师教务系统是一个高校教务综合管理系统，覆盖学生、教师、管理员三类角色。
+                    AI 聊天当前处于本地兜底模式。教学综合信息服务平台是一个高校教务综合管理系统，覆盖学生、教师、管理员三类角色。
                     学生端支持个人信息、课表、成绩、考试、选课抢课、教学评价、学籍异动、报名申请和学业画像。
                     教师端支持查看任课课程、教学班学生、成绩录入、考试安排和评价结果。
                     管理端支持用户权限、课程教学班、成绩考试、通知文件、申请审核、审计日志、数据库只读浏览、Redis 监控和压测报告。
@@ -194,6 +196,37 @@ public class AiInternalController {
 
     private String cleanModelName(String modelName) {
         return modelName == null ? "" : modelName.trim();
+    }
+
+    String applyThinkingMode(String userMessage, String mode, String modelName) {
+        String message = userMessage == null ? "" : userMessage;
+        String normalized = normalizeThinkingMode(mode);
+        if ("AUTO".equals(normalized) || hasExplicitThinkingDirective(message) || !supportsThinkingMode(modelName)) {
+            return message;
+        }
+        return switch (normalized) {
+            case "ON" -> "/think\n" + message;
+            case "OFF" -> "/no_think\n" + message;
+            default -> message;
+        };
+    }
+
+    private boolean hasExplicitThinkingDirective(String message) {
+        String trimmed = message == null ? "" : message.stripLeading().toLowerCase(Locale.ROOT);
+        return trimmed.startsWith("/think") || trimmed.startsWith("/no_think");
+    }
+
+    private boolean supportsThinkingMode(String modelName) {
+        String normalized = modelName == null ? "" : modelName.toLowerCase(Locale.ROOT);
+        return normalized.contains("qwen3") || normalized.contains("deepseek-r1") || normalized.contains("reason");
+    }
+
+    private String normalizeThinkingMode(String mode) {
+        String normalized = mode == null ? "AUTO" : mode.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ON", "OFF" -> normalized;
+            default -> "AUTO";
+        };
     }
 
     private String ragPrompt(String question, List<AiDtos.SourceDocument> sources) {

@@ -11,7 +11,8 @@ public record AiChatResponse(
         String selectedModelName,
         String actualModelName,
         boolean fallback,
-        String fallbackReason
+        String fallbackReason,
+        String thinkingMode
 ) {
     public AiChatResponse(
             String answer,
@@ -21,6 +22,6 @@ public record AiChatResponse(
             java.util.List<AiSearchDtos.SearchResult> searchSources,
             String searchMessage
     ) {
-        this(answer, serviceMode, modelName, searchUsed, searchSources, searchMessage, null, modelName, modelName, false, null);
+        this(answer, serviceMode, modelName, searchUsed, searchSources, searchMessage, null, modelName, modelName, false, null, "AUTO");
     }
 }

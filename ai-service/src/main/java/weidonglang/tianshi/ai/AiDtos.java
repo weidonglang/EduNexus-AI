@@ -21,13 +21,13 @@ public class AiDtos {
     public record SqlGenerateResponse(String sql, String explanation, List<String> warnings, String serviceMode) {
     }
 
-    public record ChatRequest(@NotBlank String message, String modelName, Long modelId, Long sessionId) {
+    public record ChatRequest(@NotBlank String message, String modelName, Long modelId, Long sessionId, String thinkingMode) {
     }
 
     public record ChatResponse(String answer, String serviceMode, String modelName, boolean searchUsed,
                                List<Object> searchSources, String searchMessage, Long selectedModelId,
                                String selectedModelName, String actualModelName, boolean fallback,
-                               String fallbackReason) {
+                               String fallbackReason, String thinkingMode) {
     }
 
     public record StatusResponse(boolean ollamaEnabled, boolean ollamaReachable, String chatModel, String sqlModel, String lastError) {

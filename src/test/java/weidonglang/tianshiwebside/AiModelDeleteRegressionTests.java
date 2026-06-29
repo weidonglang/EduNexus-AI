@@ -54,7 +54,7 @@ class AiModelDeleteRegressionTests extends HttpRegressionTestSupport {
     }
 
     @Test
-    void defaultEnabledAndNonAdminDeleteAreRejected() throws Exception {
+    void defaultDeleteIsRejectedEnabledNonDefaultCanBeSoftDeletedAndNonAdminDeleteIsRejected() throws Exception {
         String suffix = suffix();
         String admin = "ai_model_guard_admin_" + suffix;
         String student = "ai_model_guard_student_" + suffix;
@@ -85,11 +85,14 @@ class AiModelDeleteRegressionTests extends HttpRegressionTestSupport {
                   "purpose":"删除保护",
                   "enabled":true,
                   "defaultModel":false,
-                  "description":"启用模型不能删除"
+                  "description":"启用非默认模型可直接软删除"
                 }
                 """.formatted(suffix, suffix)), HttpStatus.OK);
-        assertThat(delete("/api/admin/ai/models/" + enabled.at("/data/id").asLong(), adminToken).statusCode())
-                .isEqualTo(HttpStatus.CONFLICT.value());
+        long enabledModelId = enabled.at("/data/id").asLong();
+        assertThat(delete("/api/admin/ai/models/" + enabledModelId, adminToken).statusCode())
+                .isEqualTo(HttpStatus.OK.value());
+        assertThat(count("select count(*) from ai_model_registry where id = ? and deleted = true and enabled = false and is_default = false", enabledModelId))
+                .isEqualTo(1);
 
         JsonNode disabled = json(post("/api/admin/ai/models", adminToken, """
                 {

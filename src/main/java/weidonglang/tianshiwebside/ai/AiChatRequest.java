@@ -7,6 +7,7 @@ public record AiChatRequest(
         @NotBlank
         @Size(max = 1000)
         String message,
-        Long modelId
+        Long modelId,
+        String thinkingMode
 ) {
 }

@@ -1,6 +1,6 @@
 # AI Search And Safety Configuration
 
-Updated: 2026-06-28
+Updated: 2026-06-29
 
 This document explains the v2.0.0 AI web search and safety review configuration workflow.
 
@@ -133,3 +133,41 @@ Recommended verification order:
 3. Apply Strict safety template.
 4. Run safety test with sample sensitive text.
 5. Switch to real provider only after local demo succeeds.
+
+## v2.0.1 Search Grounding Behavior
+
+When chat triggers web search, the main service now executes search before model generation. Returned results are compressed into a structured prompt context and passed to the model before it answers.
+
+The model prompt tells the AI:
+
+- search has already been performed by the system
+- answer strictly from the search results
+- do not say it cannot search the web
+- do not invent titles, links, or sources outside the returned results
+- when the user asks for the first result, return the first search result directly
+
+The response still keeps `联网搜索参考` at the bottom for traceability.
+
+The search grounding prompt does not hard-code `/think` or `/no_think`. Thinking behavior is controlled by the chat request field:
+
+```text
+thinkingMode=AUTO | ON | OFF
+```
+
+## SearXNG Docker Base URL
+
+In Docker, configure SearXNG from the backend container viewpoint:
+
+```text
+http://searxng:8080/search?q={query}&format=json
+```
+
+If SearXNG is running as `searxng-core`, connect it to the Academic-Nexus network:
+
+```powershell
+docker inspect academic-main --format='{{range $k,$v := .NetworkSettings.Networks}}{{println $k}}{{end}}'
+docker network connect --alias searxng tianshiwebside_default searxng-core
+docker exec academic-main wget -S -O- "http://searxng:8080/search?q=OpenAI&format=json"
+```
+
+Do not use a browser-only `localhost` URL unless SearXNG is running inside the same container, which is not the normal deployment.

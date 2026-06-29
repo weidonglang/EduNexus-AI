@@ -71,7 +71,7 @@ public class AiController {
 
     @PostMapping("/api/ai/chat")
     public ApiResponse<AiChatResponse> chat(@Valid @RequestBody AiChatRequest request, Principal principal) {
-        return ApiResponse.success(chatService.chat(request.message(), principal, request.modelId(), null));
+        return ApiResponse.success(chatService.chat(request.message(), principal, request.modelId(), null, request.thinkingMode()));
     }
 
     @GetMapping("/api/ai/chat/models")

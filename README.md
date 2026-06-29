@@ -50,6 +50,29 @@ Default URLs:
 
 For detailed deployment instructions, see [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md).
 
+### Docker AI Notes For v2.0.1
+
+- `academic-ai-service` 在线不等于 Ollama 已启用。`OLLAMA_ENABLED=false` 时显示本地兜底模式是正常行为。
+- 启用 Ollama 后需要执行：
+
+```powershell
+docker compose up -d --force-recreate academic-ai-service academic-main
+```
+
+- Docker 内配置 SearXNG 搜索时，Base URL 是后端容器视角。推荐：
+
+```text
+http://searxng:8080/search?q={query}&format=json
+```
+
+- 如果 SearXNG 容器名为 `searxng-core`，先接入同一网络：
+
+```powershell
+docker inspect academic-main --format='{{range $k,$v := .NetworkSettings.Networks}}{{println $k}}{{end}}'
+docker network connect --alias searxng tianshiwebside_default searxng-core
+docker exec academic-main wget -S -O- "http://searxng:8080/search?q=OpenAI&format=json"
+```
+
 ## 项目简介
 
 本项目围绕高校教务系统的核心流程实现了一套前后端分离应用，覆盖学生、教师、管理员三类角色。系统包含选课、成绩、考试、课表、学籍异动、报名审核、通知公告、教学评价、数据库只读浏览、Redis 抢课、压测报告和 AI 辅助教务等模块。

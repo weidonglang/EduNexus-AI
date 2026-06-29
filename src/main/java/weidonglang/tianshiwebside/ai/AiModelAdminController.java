@@ -77,9 +77,8 @@ public class AiModelAdminController {
 
     @DeleteMapping("/models/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id, Principal principal) {
-        AiModelRecord model = modelRegistryService.require(id);
         modelRegistryService.softDelete(id, operator(principal));
-        audit(principal, "DELETE_AI_MODEL", id, model.name() + "; softDelete=true");
+        audit(principal, "DELETE_AI_MODEL", id, "softDelete=true");
         return ApiResponse.success();
     }
 

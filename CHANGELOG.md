@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.0.1 - AI, Docker and Frontend UX Fixes
+
+### Fixed
+
+- Clarified SearXNG real search Docker network configuration.
+- Clarified Ollama enablement for Docker ai-service deployment.
+- Fixed web-search grounding so local model answers use returned references.
+- Fixed AI model registry default/deleted/enabled state constraints.
+- Fixed top global search interaction.
+- Fixed dashboard quick-app settings interaction.
+
+### Improved
+
+- Improved AI Chat frontend state, loading, retry, copy, error and reference feedback.
+- Added AI thinking mode switch: Auto / On / Off.
+- Added `thinkingMode` propagation from frontend to main service and ai-service.
+- Added branch cleanup report.
+- Added local and Docker run verification.
+- Added v2.0.1 QA report.
+
 ## v2.0.0 - Stable Complete Edition - 2026-06-28
 
 ### Final stabilization

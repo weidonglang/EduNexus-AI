@@ -2,7 +2,7 @@
 // 登录后的主布局组件。
 // 学生、教师、管理员共用这一套布局：左侧菜单来自后端 /api/menus，顶部展示当前用户信息，
 // 中间区域通过 RouterView 切换具体业务页面。
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { LogOut, Search, UserRound } from 'lucide-vue-next'
@@ -16,6 +16,7 @@ const router = useRouter()
 const route = useRoute()
 
 const activePath = computed(() => route.path)
+const searchKeyword = ref('')
 const roleLabel = computed(() => {
   const roles = auth.user?.roles ?? []
   if (roles.includes('ADMIN')) return '管理员'
@@ -28,6 +29,17 @@ onMounted(async () => {
   await menu.loadMenus(true)
 })
 
+const searchableRoutes = computed(() =>
+  flattenMenus(menu.items)
+    .filter((item) => item.path && item.path !== '/dashboard')
+    .map((item) => ({
+      value: item.title,
+      title: item.title,
+      path: item.path,
+      keywords: routeKeywords(item),
+    })),
+)
+
 async function logout() {
   await auth.logout()
   ElMessage.success('已退出登录')
@@ -36,6 +48,60 @@ async function logout() {
 
 function hasChildren(item: MenuItem) {
   return item.children && item.children.length > 0
+}
+
+function flattenMenus(items: MenuItem[]): MenuItem[] {
+  return items.flatMap((item) => (item.children?.length ? flattenMenus(item.children) : [item]))
+}
+
+function routeKeywords(item: MenuItem) {
+  const aliases: Record<string, string[]> = {
+    '/course/selection': ['课程', '选课', '抢课'],
+    '/grade/query': ['成绩', '绩点', '分数'],
+    '/exam/query': ['考试', '考场'],
+    '/schedule/personal': ['课表', '日程'],
+    '/evaluation': ['评价', '教学评价'],
+    '/admin/users': ['用户', '账号', '学生', '教师'],
+    '/admin/course-offerings': ['课程管理', '教学班', '开课'],
+    '/admin/courses': ['课程管理', '课程'],
+    '/admin/exams': ['考试管理', '考试安排'],
+    '/admin/notices': ['通知', '公告'],
+    '/admin/system-health': ['系统健康', '健康巡检'],
+    '/teacher/offerings': ['教学班', '任课'],
+    '/teacher/grades': ['成绩录入', '成绩'],
+    '/teacher/exams': ['考试安排', '考试'],
+    '/teacher/evaluations': ['评价统计', '评价'],
+  }
+  return [item.title, item.path, ...(aliases[item.path] ?? [])].join(' ').toLowerCase()
+}
+
+function querySearch(query: string, callback: (items: Array<{ value: string; title: string; path: string }>) => void) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) {
+    callback(searchableRoutes.value.slice(0, 8))
+    return
+  }
+  const results = searchableRoutes.value
+    .filter((item) => item.keywords.includes(normalized))
+    .slice(0, 8)
+  callback(results.length ? results : [{ value: '未找到相关功能', title: '未找到相关功能', path: '', keywords: '' }])
+}
+
+function selectSearchResult(item: { path: string }) {
+  if (!item.path) return
+  searchKeyword.value = ''
+  router.push(item.path)
+}
+
+function submitSearch() {
+  const normalized = searchKeyword.value.trim().toLowerCase()
+  if (!normalized) return
+  const match = searchableRoutes.value.find((item) => item.keywords.includes(normalized))
+  if (!match) {
+    ElMessage.warning('未找到相关功能')
+    return
+  }
+  selectSearchResult(match)
 }
 </script>
 
@@ -67,10 +133,25 @@ function hasChildren(item: MenuItem) {
           <el-menu-item v-else :index="item.path">{{ item.title }}</el-menu-item>
         </template>
       </el-menu>
-      <div class="zf-search">
-        <Search :size="15" />
-        <span>搜索课程、成绩、考试</span>
-      </div>
+      <el-autocomplete
+        v-model="searchKeyword"
+        class="zf-search"
+        :fetch-suggestions="querySearch"
+        placeholder="搜索课程、成绩、考试"
+        clearable
+        @select="selectSearchResult"
+        @keyup.enter="submitSearch"
+      >
+        <template #prefix>
+          <Search :size="15" />
+        </template>
+        <template #default="{ item }">
+          <div class="search-suggestion">
+            <span>{{ item.title }}</span>
+            <small>{{ item.path }}</small>
+          </div>
+        </template>
+      </el-autocomplete>
     </nav>
 
     <main class="zf-content">

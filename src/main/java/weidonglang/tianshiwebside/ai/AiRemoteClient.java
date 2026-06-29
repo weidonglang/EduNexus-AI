@@ -56,17 +56,22 @@ public class AiRemoteClient {
     }
 
     public Optional<AiChatResponse> chat(String message) {
-        return chat(message, null, null, null);
+        return chat(message, null, null, null, "AUTO");
     }
 
     public Optional<AiChatResponse> chat(String message, Long selectedModelId, String selectedModelName, Long sessionId) {
+        return chat(message, selectedModelId, selectedModelName, sessionId, "AUTO");
+    }
+
+    public Optional<AiChatResponse> chat(String message, Long selectedModelId, String selectedModelName, Long sessionId, String thinkingMode) {
         try {
             if (discoveryEnabled) {
                 return Optional.of(feign().chat(new AiServiceFeignClient.ChatPayload(
                         message,
                         selectedModelName,
                         selectedModelId,
-                        sessionId
+                        sessionId,
+                        thinkingMode
                 )));
             }
             Map<String, Object> payload = new java.util.LinkedHashMap<>();
@@ -74,6 +79,7 @@ public class AiRemoteClient {
             payload.put("modelName", selectedModelName);
             payload.put("modelId", selectedModelId);
             payload.put("sessionId", sessionId);
+            payload.put("thinkingMode", thinkingMode);
             String response = post("/internal/ai/chat", payload, Duration.ofSeconds(90));
             return Optional.of(objectMapper.readValue(response, AiChatResponse.class));
         } catch (Exception ex) {

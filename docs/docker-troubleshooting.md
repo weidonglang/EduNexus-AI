@@ -86,3 +86,65 @@ FRONTEND_HOST_PORT=15173
 ```
 
 Container-to-container traffic still uses internal names and ports such as `mysql:3306`, `redis:6379`, `nacos:8848`, `academic-ai-service:8090`, and `academic-main:8080`.
+
+## SearXNG Works In Browser But Not In AI Search
+
+The AI search Base URL is used by `academic-main`, not the browser. `localhost` inside `academic-main` is the backend container, so do not configure a browser-only URL.
+
+Check the backend network:
+
+```powershell
+docker inspect academic-main --format='{{range $k,$v := .NetworkSettings.Networks}}{{println $k}}{{end}}'
+```
+
+Connect SearXNG:
+
+```powershell
+docker network connect --alias searxng tianshiwebside_default searxng-core
+```
+
+Verify from the backend container:
+
+```powershell
+docker exec academic-main wget -S -O- "http://searxng:8080/search?q=OpenAI&format=json"
+```
+
+Use this admin search config:
+
+```text
+Provider: SearXNG
+Base URL: http://searxng:8080/search?q={query}&format=json
+API key env: empty
+```
+
+## AI Service Online But Ollama Still Fallback
+
+This is expected when:
+
+```env
+OLLAMA_ENABLED=false
+```
+
+Enable Ollama in `.env`:
+
+```env
+OLLAMA_ENABLED=true
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_CHAT_MODEL=qwen3:8b
+OLLAMA_SQL_MODEL=qwen2.5-coder:7b
+```
+
+Then recreate the AI and main services:
+
+```powershell
+docker compose up -d --force-recreate academic-ai-service academic-main
+```
+
+Diagnostics:
+
+```powershell
+docker exec academic-ai-service printenv | findstr OLLAMA
+curl.exe http://localhost:11434/api/tags
+docker exec academic-ai-service wget -S -O- "http://host.docker.internal:11434/api/tags"
+ollama list
+```

@@ -174,7 +174,7 @@ async function toggleModel(row: AiModelRecord) {
 
 async function deleteModel(row: AiModelRecord) {
   try {
-    await ElMessageBox.confirm(`确认删除模型“${row.name}”？历史日志会保留模型名称，列表将不再展示。`, '删除模型', {
+    await ElMessageBox.confirm(`确认删除模型“${row.name}”？系统会自动停用并软删除该模型，历史日志会保留模型名称。`, '删除模型', {
       type: 'warning',
       confirmButtonText: '删除',
       cancelButtonText: '取消',
@@ -357,7 +357,7 @@ function resolveErrorMessage(error: unknown, fallback: string) {
             <el-button text @click="toggleModel(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
             <el-button text :disabled="row.defaultModel || !row.enabled" @click="setDefault(row)">默认</el-button>
             <el-button text :loading="testingId === row.id" @click="testModel(row)">测试</el-button>
-            <el-button text type="danger" :disabled="row.defaultModel || row.enabled" @click="deleteModel(row)">删除</el-button>
+            <el-button text type="danger" :disabled="row.defaultModel" @click="deleteModel(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

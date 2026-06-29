@@ -32,6 +32,7 @@ export interface AiChatResponse {
   actualModelName?: string
   fallback?: boolean
   fallbackReason?: string
+  thinkingMode?: 'AUTO' | 'ON' | 'OFF'
 }
 
 export interface AiServiceStatusResponse {
@@ -153,6 +154,7 @@ export interface AiChatMessage {
   serviceMode?: string
   modelName?: string
   searchUsed: boolean
+  thinkingMode?: 'AUTO' | 'ON' | 'OFF'
   createdAt: string
 }
 
@@ -162,8 +164,10 @@ export interface AiChatSendResponse {
   session: AiChatSession
 }
 
-export function aiChatApi(message: string, modelId?: number) {
-  return http.post<never, ApiResponse<AiChatResponse>>('/ai/chat', { message, modelId }, { timeout: AI_REQUEST_TIMEOUT_MS })
+export type ThinkingMode = 'AUTO' | 'ON' | 'OFF'
+
+export function aiChatApi(message: string, modelId?: number, thinkingMode: ThinkingMode = 'AUTO') {
+  return http.post<never, ApiResponse<AiChatResponse>>('/ai/chat', { message, modelId, thinkingMode }, { timeout: AI_REQUEST_TIMEOUT_MS })
 }
 
 export function aiStatusApi() {
@@ -218,7 +222,7 @@ export function aiChatMessagesApi(sessionId: number) {
   return http.get<never, ApiResponse<AiChatMessage[]>>(`/ai/chat/sessions/${sessionId}/messages`)
 }
 
-export function sendAiChatMessageApi(sessionId: number, payload: { message: string; modelId?: number }) {
+export function sendAiChatMessageApi(sessionId: number, payload: { message: string; modelId?: number; thinkingMode?: ThinkingMode }) {
   return http.post<never, ApiResponse<AiChatSendResponse>>(`/ai/chat/sessions/${sessionId}/messages`, payload, {
     timeout: AI_REQUEST_TIMEOUT_MS,
   })

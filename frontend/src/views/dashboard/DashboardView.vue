@@ -4,6 +4,7 @@
 // 学生会额外加载个人课表，管理员和教师则更多展示管理/教学相关入口。
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   Bell,
   BookOpen,
@@ -41,6 +42,9 @@ const overview = ref<DashboardOverview>({
 const notices = ref<Notice[]>([])
 const notifications = ref<Notification[]>([])
 const schedules = ref<ScheduleEntry[]>([])
+const quickAppSettingsVisible = ref(false)
+const selectedQuickAppCodes = ref<string[]>([])
+const quickAppRevision = ref(0)
 const isStudent = computed(() => auth.user?.roles.includes('STUDENT') ?? false)
 const isAdmin = computed(() => auth.user?.roles.includes('ADMIN') ?? false)
 const isTeacher = computed(() => auth.user?.roles.includes('TEACHER') ?? false)
@@ -65,7 +69,11 @@ const roleStatCards = computed(() => [
       ]),
 ])
 
-const quickApps = computed(() => {
+const quickAppStorageKey = computed(() => `academic-nexus:quick-apps:${auth.user?.username ?? 'anonymous'}`)
+
+const allQuickAppOptions = computed(() => flattenMenus(menu.items).filter((item) => item.path !== '/dashboard'))
+
+const defaultQuickApps = computed(() => {
   const leafs = flattenMenus(menu.items).filter((item) => item.path !== '/dashboard')
   const priority = [
     '/student/profile',
@@ -80,6 +88,14 @@ const quickApps = computed(() => {
   return leafs
     .sort((a, b) => priorityScore(a.path, priority) - priorityScore(b.path, priority))
     .slice(0, 8)
+})
+
+const quickApps = computed(() => {
+  quickAppRevision.value
+  const storedCodes = loadQuickAppCodes()
+  if (!storedCodes.length) return defaultQuickApps.value
+  const byCode = new Map(allQuickAppOptions.value.map((item) => [item.code, item]))
+  return storedCodes.map((code) => byCode.get(code)).filter((item): item is MenuItem => Boolean(item)).slice(0, 8)
 })
 
 const userRoleText = computed(() => {
@@ -102,6 +118,7 @@ onMounted(async () => {
     notices.value = noticeResponse.data.records
     notifications.value = notificationResponse.data.records
     schedules.value = isStudent.value ? (await personalScheduleApi()).data : []
+    selectedQuickAppCodes.value = quickApps.value.map((item) => item.code)
   } finally {
     loading.value = false
   }
@@ -128,6 +145,44 @@ function priorityScore(path: string, priority: string[]) {
   const index = priority.indexOf(path)
   return index === -1 ? 1000 : index
 }
+
+function loadQuickAppCodes() {
+  try {
+    const raw = localStorage.getItem(quickAppStorageKey.value)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function openQuickAppSettings() {
+  selectedQuickAppCodes.value = quickApps.value.map((item) => item.code)
+  quickAppSettingsVisible.value = true
+}
+
+function saveQuickAppSettings() {
+  const codes = selectedQuickAppCodes.value.slice(0, 8)
+  localStorage.setItem(quickAppStorageKey.value, JSON.stringify(codes))
+  selectedQuickAppCodes.value = codes
+  quickAppRevision.value += 1
+  quickAppSettingsVisible.value = false
+  ElMessage.success('快捷应用已保存')
+}
+
+function resetQuickAppSettings() {
+  localStorage.removeItem(quickAppStorageKey.value)
+  selectedQuickAppCodes.value = defaultQuickApps.value.map((item) => item.code)
+  quickAppRevision.value += 1
+  ElMessage.success('已恢复默认快捷应用')
+}
+
+function handleQuickAppCheck(value: string[]) {
+  if (value.length > 8) {
+    selectedQuickAppCodes.value = value.slice(0, 8)
+    ElMessage.warning('最多选择 8 个快捷应用')
+  }
+}
 </script>
 
 <template>
@@ -135,7 +190,9 @@ function priorityScore(path: string, priority: string[]) {
     <aside class="portal-apps">
       <div class="portal-panel-title">
         <h2>我的应用</h2>
-        <Settings :size="18" />
+        <el-button text circle @click="openQuickAppSettings">
+          <Settings :size="18" />
+        </el-button>
       </div>
       <div class="app-list">
         <button v-for="app in quickApps" :key="app.code" class="app-link" type="button" @click="go(app.path)">
@@ -233,5 +290,38 @@ function priorityScore(path: string, priority: string[]) {
         </el-table>
       </article>
     </section>
+
+    <el-dialog v-model="quickAppSettingsVisible" title="我的应用设置" width="520px">
+      <el-checkbox-group v-model="selectedQuickAppCodes" class="quick-app-settings" @change="handleQuickAppCheck">
+        <el-checkbox
+          v-for="app in allQuickAppOptions"
+          :key="app.code"
+          :label="app.code"
+          :disabled="selectedQuickAppCodes.length >= 8 && !selectedQuickAppCodes.includes(app.code)"
+        >
+          {{ app.title }}
+          <small>{{ app.path }}</small>
+        </el-checkbox>
+      </el-checkbox-group>
+      <template #footer>
+        <el-button @click="resetQuickAppSettings">恢复默认</el-button>
+        <el-button @click="quickAppSettingsVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveQuickAppSettings">保存</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
+
+<style scoped>
+.quick-app-settings {
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.quick-app-settings small {
+  margin-left: 8px;
+  color: #6b7280;
+}
+</style>

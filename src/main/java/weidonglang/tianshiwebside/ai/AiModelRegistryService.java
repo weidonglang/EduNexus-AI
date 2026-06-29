@@ -48,7 +48,20 @@ public class AiModelRegistryService {
     }
 
     public AiModelRecord defaultEnabledModel(String modelType) {
-        List<AiModelRecord> rows = enabledModels(modelType);
+        List<AiModelRecord> rows = jdbcTemplate.query("""
+                        select id, name, provider, model_name, base_url, api_key_ref, model_type, purpose,
+                               enabled, is_default, description, last_status, last_latency_ms, last_error,
+                               last_checked_at, created_at, updated_at
+                        from ai_model_registry
+                        where enabled = true
+                          and deleted = false
+                          and model_type = ?
+                        order by is_default desc,
+                                 case when last_status = 'DOWN' then 1 else 0 end,
+                                 id asc
+                        """,
+                (rs, rowNum) -> mapModel(rs),
+                normalize(modelType));
         if (rows.isEmpty()) {
             throw new BusinessException(ErrorCode.CONFLICT, "没有可用的 " + normalize(modelType) + " 模型");
         }
@@ -64,6 +77,7 @@ public class AiModelRegistryService {
     }
 
     public AiModelRecord create(AiModelRequest request) {
+        validateDefaultRequest(request.enabled(), request.defaultModel());
         Instant now = Instant.now();
         jdbcTemplate.update("""
                         insert into ai_model_registry
@@ -84,6 +98,8 @@ public class AiModelRegistryService {
     @Transactional
     public AiModelRecord update(Long id, AiModelRequest request) {
         AiModelRecord existing = require(id);
+        validateDefaultRequest(request.enabled(), request.defaultModel());
+        boolean nextDefault = request.enabled() && request.defaultModel();
         jdbcTemplate.update("""
                         update ai_model_registry
                         set name = ?, provider = ?, model_name = ?, base_url = ?, api_key_ref = ?,
@@ -92,10 +108,10 @@ public class AiModelRegistryService {
                         """,
                 clean(request.name()), normalize(request.provider()), clean(request.modelName()), clean(request.baseUrl()),
                 clean(request.apiKeyRef()), normalize(request.modelType()), clean(request.purpose()), request.enabled(),
-                request.defaultModel(), clean(request.description()), Instant.now(), id);
-        if (request.defaultModel()) {
+                nextDefault, clean(request.description()), Instant.now(), id);
+        if (nextDefault) {
             setDefault(id);
-        } else if (existing.defaultModel()) {
+        } else if (existing.defaultModel() && request.enabled()) {
             jdbcTemplate.update("update ai_model_registry set is_default = true where id = ?", id);
         }
         return require(id);
@@ -119,22 +135,26 @@ public class AiModelRegistryService {
     }
 
     public void setEnabled(Long id, boolean enabled) {
-        require(id);
-        jdbcTemplate.update("update ai_model_registry set enabled = ?, updated_at = ? where id = ?", enabled, Instant.now(), id);
+        AiModelRecord model = require(id);
+        if (!enabled && model.defaultModel()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "默认模型不能直接停用，请先设置其他同类型启用模型为默认");
+        }
+        jdbcTemplate.update("update ai_model_registry set enabled = ?, is_default = case when ? = false then false else is_default end, updated_at = ? where id = ?",
+                enabled, enabled, Instant.now(), id);
     }
 
     @Transactional
     public void softDelete(Long id, String operator) {
+        if (isDeleted(id)) {
+            return;
+        }
         AiModelRecord model = require(id);
         if (model.defaultModel()) {
-            throw new BusinessException(ErrorCode.CONFLICT, "默认模型不能删除，请先切换默认模型");
-        }
-        if (model.enabled()) {
-            throw new BusinessException(ErrorCode.CONFLICT, "启用模型不能删除，请先停用模型");
+            throw new BusinessException(ErrorCode.CONFLICT, "默认模型不能删除，请先设置其他同类型启用模型为默认");
         }
         jdbcTemplate.update("""
                         update ai_model_registry
-                        set deleted = true, deleted_at = ?, deleted_by = ?, enabled = false, updated_at = ?
+                        set deleted = true, deleted_at = ?, deleted_by = ?, enabled = false, is_default = false, updated_at = ?
                         where id = ?
                         """,
                 Instant.now(), clean(operator), Instant.now(), id);
@@ -146,8 +166,19 @@ public class AiModelRegistryService {
         if (!model.enabled()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "只能将已启用模型设为默认");
         }
-        jdbcTemplate.update("update ai_model_registry set is_default = false where model_type = ?", model.modelType());
-        jdbcTemplate.update("update ai_model_registry set is_default = true, updated_at = ? where id = ?", Instant.now(), id);
+        jdbcTemplate.update("""
+                update ai_model_registry
+                set is_default = false
+                where model_type = ?
+                  and deleted = false
+                """, model.modelType());
+        jdbcTemplate.update("""
+                update ai_model_registry
+                set is_default = true, updated_at = ?
+                where id = ?
+                  and enabled = true
+                  and deleted = false
+                """, Instant.now(), id);
     }
 
     public String defaultModelName(String modelType, String fallback) {
@@ -185,6 +216,21 @@ public class AiModelRegistryService {
 
     private String clean(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private void validateDefaultRequest(boolean enabled, boolean defaultModel) {
+        if (defaultModel && !enabled) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "停用模型不能设为默认模型");
+        }
+    }
+
+    private boolean isDeleted(Long id) {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from ai_model_registry where id = ? and deleted = true",
+                Integer.class,
+                id
+        );
+        return count != null && count > 0;
     }
 
     private AiModelRecord mapModel(java.sql.ResultSet rs) throws java.sql.SQLException {

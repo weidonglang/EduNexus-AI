@@ -97,7 +97,7 @@ public class AiChatSessionService {
         String username = username(principal);
         requireSession(username, sessionId);
         return jdbcTemplate.query("""
-                        select id, session_id, role, content, service_mode, model_name, search_used, created_at
+                        select id, session_id, role, content, service_mode, model_name, search_used, thinking_mode, created_at
                         from ai_chat_message
                         where session_id = ?
                         order by created_at asc, id asc
@@ -110,6 +110,7 @@ public class AiChatSessionService {
                         rs.getString("service_mode"),
                         rs.getString("model_name"),
                         rs.getBoolean("search_used"),
+                        rs.getString("thinking_mode"),
                         rs.getTimestamp("created_at").toInstant()
                 ),
                 sessionId);
@@ -126,17 +127,19 @@ public class AiChatSessionService {
         if (userText.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "消息内容不能为空");
         }
+        String thinkingMode = normalizeThinkingMode(request.thinkingMode());
         jdbcTemplate.update("""
-                        insert into ai_chat_message (session_id, role, content, service_mode, model_name, search_used, created_at)
-                        values (?, 'user', ?, null, ?, false, ?)
+                        insert into ai_chat_message (session_id, role, content, service_mode, model_name, search_used, thinking_mode, created_at)
+                        values (?, 'user', ?, null, ?, false, ?, ?)
                         """,
-                sessionId, truncate(userText, 4000), model.modelName(), now);
-        AiChatResponse response = chatService.chat(userText, principal, model.id(), sessionId);
+                sessionId, truncate(userText, 4000), model.modelName(), thinkingMode, now);
+        AiChatResponse response = chatService.chat(userText, principal, model.id(), sessionId, thinkingMode);
         jdbcTemplate.update("""
-                        insert into ai_chat_message (session_id, role, content, service_mode, model_name, search_used, created_at)
-                        values (?, 'assistant', ?, ?, ?, ?, ?)
+                        insert into ai_chat_message (session_id, role, content, service_mode, model_name, search_used, thinking_mode, created_at)
+                        values (?, 'assistant', ?, ?, ?, ?, ?, ?)
                         """,
-                sessionId, truncate(response.answer(), 4000), response.serviceMode(), response.modelName(), response.searchUsed(), Instant.now());
+                sessionId, truncate(response.answer(), 4000), response.serviceMode(), response.modelName(),
+                response.searchUsed(), response.thinkingMode(), Instant.now());
         String nextTitle = session.title();
         if ("新会话".equals(nextTitle)) {
             nextTitle = truncate(userText.replaceAll("\\s+", " ").trim(), 30);
@@ -199,17 +202,25 @@ public class AiChatSessionService {
         return value == null ? null : value.toInstant();
     }
 
+    private String normalizeThinkingMode(String mode) {
+        String value = mode == null ? "AUTO" : mode.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (value) {
+            case "ON", "OFF" -> value;
+            default -> "AUTO";
+        };
+    }
+
     public record ChatSessionRow(Long id, String title, Long modelId, String modelName, Instant createdAt, Instant updatedAt) {
     }
 
     public record ChatMessageRow(Long id, Long sessionId, String role, String content, String serviceMode,
-                                 String modelName, boolean searchUsed, Instant createdAt) {
+                                 String modelName, boolean searchUsed, String thinkingMode, Instant createdAt) {
     }
 
     public record ChatSessionRequest(String title, Long modelId) {
     }
 
-    public record ChatMessageRequest(String message, String content, Long modelId) {
+    public record ChatMessageRequest(String message, String content, Long modelId, String thinkingMode) {
         String text() {
             return cleanValue(message).isBlank() ? cleanValue(content) : cleanValue(message);
         }
