@@ -46,8 +46,9 @@ public class AiInternalController {
             selectedModel = chatModel;
         }
         String prompt = """
-                你是“天师教务系统”的 AI 聊天助手。请用中文回答。
-                如果用户说“咱们系统”“这个系统”“项目”，默认指天师教务系统。
+                你是 EduNexus AI 的 AI 教务助手。请用中文回答。
+                EduNexus AI 是一个面向高校教务场景的 AI 驱动教务管理平台，中文名为“智教中枢”。
+                如果用户说“咱们系统”“这个系统”“项目”，默认指 EduNexus AI。
                 你可以介绍系统定位、用户角色、核心业务、AI 功能、Redis 抢课和压测能力。
                 注意：如果用户询问具体教务规则、个人成绩、选课资格、考试安排、申请审核结论等正式业务问题，应提醒其使用智能教务助手或对应业务页面，因为聊天答案不作为正式教务依据。
 
@@ -102,7 +103,7 @@ public class AiInternalController {
     @PostMapping("/internal/ai/load-test/analyze")
     public AiDtos.LoadTestAnalysisResponse analyzeLoadTest(@RequestBody AiDtos.LoadTestAnalysisRequest request) {
         String prompt = """
-                你是系统压测报告分析助手。请根据 JSON 报告输出：
+                你是 EduNexus AI 的系统压测报告分析助手。请根据 JSON 报告输出：
                 1. 本次压测结论
                 2. 可能瓶颈
                 3. 优化建议
@@ -154,7 +155,7 @@ public class AiInternalController {
 
     private String systemOverview() {
         return """
-                天师教务系统是一个面向高校教务场景的综合管理系统，用于演示学生、教师、管理员三类角色之间的业务互通。
+                EduNexus AI 是一个面向高校教务场景的 AI 驱动教务管理平台，中文名为“智教中枢”，用于演示学生、教师、管理员三类角色之间的业务互通。
                 主要角色：
                 1. 学生：查看个人信息、课表、成绩、考试、通知，进行选课、抢课、教学评价、学籍异动申请、报名申请、查看学业画像。
                 2. 教师：查看任课课程、教学班学生、录入或维护成绩、查看考试安排和教学评价结果。
@@ -181,7 +182,7 @@ public class AiInternalController {
         String normalized = message == null ? "" : message.trim();
         if (normalized.contains("系统") || normalized.contains("项目") || normalized.contains("介绍")) {
             return """
-                    AI 聊天当前处于本地兜底模式。天师教务系统是一个高校教务综合管理系统，覆盖学生、教师、管理员三类角色。
+                    AI 聊天当前处于本地兜底模式。EduNexus AI 是一个 AI 驱动教务管理平台，覆盖学生、教师、管理员三类角色。
                     学生端支持个人信息、课表、成绩、考试、选课抢课、教学评价、学籍异动、报名申请和学业画像。
                     教师端支持查看任课课程、教学班学生、成绩录入、考试安排和评价结果。
                     管理端支持用户权限、课程教学班、成绩考试、通知文件、申请审核、审计日志、数据库只读浏览、Redis 监控和压测报告。
@@ -189,7 +190,7 @@ public class AiInternalController {
                     Redis 抢课模块通过库存缓存、幂等保护、短锁、数据库容量约束和行锁保护降低高并发超卖风险。
                     """;
         }
-        return "AI 聊天当前处于本地兜底模式。涉及正式教务问题时，请使用智能教务助手并查看引用来源；如果需要介绍系统，可以问“介绍一下咱们系统”。";
+        return "AI 聊天当前处于本地兜底模式。涉及正式教务问题时，请使用智能教务助手并查看引用来源；如果需要介绍系统，可以问“介绍一下 EduNexus AI”。";
     }
 
     private String cleanModelName(String modelName) {
@@ -201,7 +202,7 @@ public class AiInternalController {
                 .map(source -> "[" + source.id() + "] " + source.title() + "\n" + source.content())
                 .collect(Collectors.joining("\n\n"));
         return """
-                你是高校教务系统的智能助手。只根据给定资料回答，不要编造。
+                你是 EduNexus AI 的智能教务助手。只根据给定资料回答，不要编造。
                 回答要求：
                 1. 用中文。
                 2. 结论明确，必要时分点。
@@ -223,7 +224,7 @@ public class AiInternalController {
                         .collect(Collectors.joining(", ")) + ")")
                 .collect(Collectors.joining("\n"));
         return """
-                你是只读 SQL 生成器。根据问题和白名单表结构生成一条 MySQL SELECT。
+                你是 EduNexus AI 的只读 SQL 生成器。根据问题和白名单表结构生成一条 MySQL SELECT。
                 严格要求：
                 1. 只能输出一条 SELECT SQL，不要解释。
                 2. 禁止 INSERT、UPDATE、DELETE、DROP、ALTER、TRUNCATE。
