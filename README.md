@@ -32,8 +32,8 @@ EduNexus-AI
 ## Quick Start with Docker
 
 ```bash
-git clone https://github.com/weidonglang/Academic-Nexus.git
-cd Academic-Nexus
+git clone https://github.com/weidonglang/EduNexus-AI.git
+cd EduNexus-AI
 cp .env.example .env
 ./scripts/check-ports.sh
 ./scripts/docker-build.sh
@@ -43,8 +43,8 @@ docker compose up -d
 Windows PowerShell:
 
 ```powershell
-git clone https://github.com/weidonglang/Academic-Nexus.git
-cd Academic-Nexus
+git clone https://github.com/weidonglang/EduNexus-AI.git
+cd EduNexus-AI
 copy .env.example .env
 .\scripts\check-ports.ps1
 .\scripts\docker-build.ps1
@@ -55,12 +55,35 @@ Default URLs:
 
 - Frontend: http://localhost:5174
 - Main service: http://localhost:8088
+- Gateway: http://localhost:9000
 - AI service: http://localhost:18090/internal/ai/status
 - Nacos: http://localhost:18848/nacos
+- Seata console: http://localhost:7091
 - MySQL: `localhost:13306`
 - Redis: `localhost:16379`
 
 For detailed deployment instructions, see [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md).
+
+### Minimal Cloud Proof Layer
+
+v2.0.2 adds a minimal Spring Cloud proof layer for course requirements without splitting the core academic business into extra services:
+
+- `edunexus-gateway` exposes Gateway on `http://localhost:9000` and routes `/api/**` to `academic-main` through Nacos service discovery.
+- Nacos should show `academic-main`, `academic-ai-service`, and `edunexus-gateway`.
+- Sentinel protects the real login endpoint `/api/auth/login` with `SENTINEL_LOGIN_QPS=3`; excessive login requests return `登录请求过于频繁，请稍后再试`.
+- Sentinel dynamic demo endpoints: `GET http://localhost:9000/api/cloud-proof/sentinel/login-rule`, `POST http://localhost:9000/api/cloud-proof/sentinel/login-rule?qps=1`, and `POST http://localhost:9000/api/cloud-proof/sentinel/login-rule?qps=10`.
+- OpenFeign proof endpoint: `GET http://localhost:9000/api/cloud-proof/feign/ai-status`.
+- Seata proof endpoints: `POST http://localhost:9000/api/cloud-proof/seata/commit` returns both `mainExists=true` and `aiExists=true`; `POST http://localhost:9000/api/cloud-proof/seata/rollback` returns both `mainExists=false` and `aiExists=false`.
+
+Suggested three-person Spring Cloud demo split:
+
+| Presenter | Spring Cloud content | Demo evidence |
+| --- | --- | --- |
+| Student 1 | Nacos + Gateway | Nacos service list and `GET /api/auth/login` through port `9000` |
+| Student 2 | Sentinel | Update login QPS to `1`, trigger `429`, then update QPS to `10` |
+| Student 3 | OpenFeign + Seata | AI status remote call plus commit/rollback consistency proof |
+
+See [docs/minimal-cloud-proof-guide.md](docs/minimal-cloud-proof-guide.md) and [docs/qa/v2.0.2-minimal-cloud-proof-report.md](docs/qa/v2.0.2-minimal-cloud-proof-report.md).
 
 ### Docker AI Notes For v2.0.1
 

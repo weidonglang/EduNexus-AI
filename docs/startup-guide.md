@@ -8,16 +8,18 @@
 | --- | --- |
 | 本地 IDEA 后端开发 | `http://localhost:8080` |
 | Docker Compose 演示后端 | `http://localhost:8088` |
+| Docker Compose Gateway | `http://localhost:9000` |
 | Docker Compose 前端 | `http://localhost:5174` |
 | Docker Compose AI Service | `http://localhost:18090` |
 | Docker Compose Nacos 控制台 | `http://localhost:18848/nacos` |
+| Docker Compose Seata 控制台 | `http://localhost:7091` |
 | Docker Compose MySQL | `localhost:13306` |
 | Docker Compose Redis | `localhost:16379` |
 | 本地前端开发服务 | `http://localhost:5173` |
 | 本地 AI Service | `http://localhost:8090` |
 | 本地 Nacos 控制台 | `http://localhost:8848/nacos` |
 
-Docker 模式下只改变宿主机端口，容器内部端口保持不变：`academic-main:8080`、`academic-ai-service:8090`、`mysql:3306`、`redis:6379`、`nacos:8848`。首次复刻建议：
+Docker 模式下只改变宿主机端口，容器内部端口保持不变：`academic-main:8080`、`academic-ai-service:8090`、`edunexus-gateway:9000`、`mysql:3306`、`redis:6379`、`nacos:8848`、`seata-server:8091`。首次复刻建议：
 
 ```powershell
 copy .env.example .env
@@ -26,7 +28,7 @@ copy .env.example .env
 docker compose up -d
 ```
 
-如果本机已安装 MySQL、Redis、Nacos 或已有 Vite 开发服务，占用端口时修改 `.env` 中的 `MYSQL_HOST_PORT`、`REDIS_HOST_PORT`、`NACOS_HOST_PORT`、`FRONTEND_HOST_PORT` 等变量即可。
+如果本机已安装 MySQL、Redis、Nacos、Seata 或已有 Vite 开发服务，占用端口时修改 `.env` 中的 `MYSQL_HOST_PORT`、`REDIS_HOST_PORT`、`NACOS_HOST_PORT`、`GATEWAY_HOST_PORT`、`SEATA_HOST_PORT`、`FRONTEND_HOST_PORT` 等变量即可。
 
 Maven 依赖下载遇到 `bad_record_mac` 或 Central 超时，使用：
 
@@ -186,6 +188,33 @@ http://localhost:18848/nacos
 ```
 
 在服务列表里应能看到 `academic-main` 和 `academic-ai-service`。如果不想启动 Nacos，可以保持默认配置，主系统会继续通过 `AI_SERVICE_URL=http://localhost:8090` 调用 AI 服务。
+
+## v2.0.2 最小云组件证明
+
+老师检查 Spring Cloud 证据时建议直接使用 Docker Compose：
+
+```powershell
+copy .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+截图点：
+
+- Nacos 控制台 `http://localhost:18848/nacos` 服务列表应出现 `academic-main`、`academic-ai-service`、`edunexus-gateway`。
+- Gateway 入口：`http://localhost:9000/api/cloud-proof/feign/ai-status`，返回体里应包含 `transport=OpenFeign` 和 AI 服务状态。
+- Sentinel 登录限流：连续快速请求 `POST http://localhost:9000/api/auth/login` 超过 3 QPS 后，返回 `登录请求过于频繁，请稍后再试`。
+- Sentinel 动态规则：`GET http://localhost:9000/api/cloud-proof/sentinel/login-rule` 查看当前规则；`POST http://localhost:9000/api/cloud-proof/sentinel/login-rule?qps=1` 可现场调低登录 QPS。
+- Seata 提交证明：`POST http://localhost:9000/api/cloud-proof/seata/commit` 返回 `mainExists=true`、`aiExists=true`。
+- Seata 回滚证明：`POST http://localhost:9000/api/cloud-proof/seata/rollback` 返回 `mainExists=false`、`aiExists=false`。
+
+本地 IDEA 开发仍可只启动主系统 `localhost:8080`。不需要 Seata 时设置：
+
+```powershell
+$env:SEATA_ENABLED="false"
+```
+
+完整截图和 curl 指南见 `docs/minimal-cloud-proof-guide.md`。
 
 ## 静态演示页
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.0.2 - Minimal Cloud Proof Layer - Unreleased
+
+### Added
+
+- Added standalone `gateway-service` with Spring Cloud Gateway routing `/api/**` to `academic-main` through Nacos.
+- Added Docker Compose services and ports for `edunexus-gateway` and Seata Server.
+- Added Sentinel protection on the real `/api/auth/login` endpoint with configurable QPS and a Chinese flow-control message.
+- Added OpenFeign proof endpoint `/api/cloud-proof/feign/ai-status`.
+- Added Seata proof endpoints `/api/cloud-proof/seata/commit` and `/api/cloud-proof/seata/rollback` using demo tables only.
+- Added cloud proof Flyway migration, Docker env wiring, startup/deployment docs, and QA evidence guide.
+
+### Boundaries
+
+- Core academic business remains in the main service.
+- Course selection, grades, exams, applications, and notices are not forced into Seata transactions.
+
 ## v2.0.1 - AI, Docker and Frontend UX Fixes - Unreleased
 
 ### Branding

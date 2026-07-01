@@ -50,6 +50,59 @@ services:
       timeout: 5s
       retries: 20
 
+  seata-server:
+    image: seataio/seata-server:2.0.0
+    container_name: edunexus-seata
+    environment:
+      SEATA_IP: seata-server
+      SEATA_PORT: 8091
+      STORE_MODE: file
+    ports:
+      - "${SEATA_HOST_PORT:-8091}:8091"
+      - "${SEATA_CONSOLE_HOST_PORT:-7091}:7091"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/8091'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  cloud-proof-db-init:
+    image: mysql:8.4
+    container_name: edunexus-cloud-proof-db-init
+    environment:
+      MYSQL_PWD: 123123
+    command:
+      - sh
+      - -c
+      - |
+        mysql -hmysql -uroot tianshiwebside <<'SQL'
+        create table if not exists undo_log (
+          branch_id bigint not null,
+          xid varchar(128) not null,
+          context varchar(128) not null,
+          rollback_info blob not null,
+          log_status int not null,
+          log_created timestamp not null,
+          log_modified timestamp not null,
+          unique key ux_undo_log (xid, branch_id)
+        );
+        create table if not exists cloud_tx_demo_main (
+          id bigint primary key auto_increment,
+          tx_no varchar(64) not null unique,
+          remark varchar(255) not null,
+          created_at timestamp not null default current_timestamp
+        );
+        create table if not exists cloud_tx_demo_ai (
+          id bigint primary key auto_increment,
+          tx_no varchar(64) not null unique,
+          remark varchar(255) not null,
+          created_at timestamp not null default current_timestamp
+        );
+        SQL
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   academic-ai-service:
     build:
       context: .
@@ -63,6 +116,13 @@ services:
       NACOS_DISCOVERY_ENABLED: "true"
       NACOS_REGISTER_ENABLED: "true"
       SPRING_CLOUD_NACOS_DISCOVERY_FAIL_FAST: "false"
+      DB_URL: jdbc:mysql://mysql:3306/tianshiwebside?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: root
+      DB_PASSWORD: 123123
+      DB_DRIVER: com.mysql.cj.jdbc.Driver
+      SEATA_ENABLED: ${SEATA_ENABLED:-true}
+      SEATA_SERVER_ADDR: seata-server:8091
+      SEATA_TX_GROUP: edunexus_tx_group
       OLLAMA_ENABLED: ${OLLAMA_ENABLED:-false}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
@@ -70,8 +130,14 @@ services:
     ports:
       - "${AI_SERVICE_HOST_PORT:-18090}:8090"
     depends_on:
+      mysql:
+        condition: service_healthy
       nacos:
         condition: service_healthy
+      seata-server:
+        condition: service_healthy
+      cloud-proof-db-init:
+        condition: service_completed_successfully
 
   academic-main:
     build:
@@ -94,6 +160,11 @@ services:
       AI_SERVICE_NAME: academic-ai-service
       AI_SERVICE_DISCOVERY_ENABLED: "true"
       AI_SERVICE_URL: http://academic-ai-service:8090
+      SEATA_ENABLED: ${SEATA_ENABLED:-true}
+      SEATA_SERVER_ADDR: seata-server:8091
+      SEATA_TX_GROUP: edunexus_tx_group
+      SENTINEL_LOGIN_ENABLED: "true"
+      SENTINEL_LOGIN_QPS: 3
     ports:
       - "${MAIN_HOST_PORT:-8088}:8080"
     depends_on:
@@ -103,7 +174,32 @@ services:
         condition: service_healthy
       nacos:
         condition: service_healthy
+      seata-server:
+        condition: service_healthy
+      cloud-proof-db-init:
+        condition: service_completed_successfully
       academic-ai-service:
+        condition: service_started
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+      args:
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
+    container_name: edunexus-gateway
+    environment:
+      GATEWAY_PORT: 9000
+      NACOS_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      NACOS_REGISTER_ENABLED: "true"
+      SPRING_CLOUD_NACOS_DISCOVERY_FAIL_FAST: "false"
+    ports:
+      - "${GATEWAY_HOST_PORT:-9000}:9000"
+    depends_on:
+      nacos:
+        condition: service_healthy
+      academic-main:
         condition: service_started
 
   frontend:

@@ -1,15 +1,20 @@
 package weidonglang.tianshiwebside.auth;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import weidonglang.tianshiwebside.auth.dto.LoginRequest;
 import weidonglang.tianshiwebside.auth.dto.LoginResponse;
+import weidonglang.tianshiwebside.cloud.SentinelLoginRuleConfig;
 import weidonglang.tianshiwebside.common.api.ApiResponse;
 
 @RestController
@@ -27,8 +32,13 @@ public class AuthController {
      * 说明：前端登录页提交账号和密码到本接口，后端调用 AuthService 校验账号状态和密码，
      * 成功后返回 token、用户信息和角色信息，供前端保存登录状态并加载对应菜单。
      */
+    @SentinelResource(value = SentinelLoginRuleConfig.LOGIN_RESOURCE, blockHandler = "loginBlocked")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request));
+    }
+
+    public ApiResponse<LoginResponse> loginBlocked(LoginRequest request, BlockException exception) {
+        throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "登录请求过于频繁，请稍后再试");
     }
 
     @PostMapping("/refresh")

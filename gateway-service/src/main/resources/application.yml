@@ -1,0 +1,30 @@
+server:
+  port: ${GATEWAY_PORT:9000}
+
+spring:
+  application:
+    name: edunexus-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        register-enabled: ${NACOS_REGISTER_ENABLED:${NACOS_DISCOVERY_ENABLED:false}}
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: academic-main-api
+              uri: lb://academic-main
+              predicates:
+                - Path=/api/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true

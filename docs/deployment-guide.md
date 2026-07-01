@@ -14,6 +14,7 @@ For the complete Docker-first reproducible deployment tutorial, see `docs/docker
 - MySQL 8.4
 - Redis 7.4
 - Nacos 2.4.3
+- Seata 2.0, only required for the v2.0.2 minimal distributed transaction proof
 
 ## Quick Docker Deployment
 
@@ -32,22 +33,42 @@ Services:
 | --- | --- |
 | Frontend dev server | `http://localhost:5174` |
 | Main backend from host | `http://localhost:8088` |
+| Gateway from host | `http://localhost:9000` |
 | Main backend inside Compose network | `http://academic-main:8080` |
 | AI service | `http://localhost:18090` |
 | Nacos console | `http://localhost:18848/nacos` |
+| Seata console | `http://localhost:7091` |
 | MySQL | `localhost:13306` |
 | Redis | `localhost:16379` |
 
-Default Compose mode enables Nacos discovery and OpenFeign service-name calls between `academic-main` and `academic-ai-service`. Containers keep stable internal ports while host ports are configurable through `.env`.
+Default Compose mode enables Nacos discovery, OpenFeign service-name calls between `academic-main` and `academic-ai-service`, Gateway routing through `edunexus-gateway`, Sentinel login flow control, and a minimal Seata proof transaction. Containers keep stable internal ports while host ports are configurable through `.env`.
 
 Override host ports only when your machine ports are free:
 
 ```env
 MAIN_HOST_PORT=18080
+GATEWAY_HOST_PORT=19000
 MYSQL_HOST_PORT=3306
 REDIS_HOST_PORT=6379
 FRONTEND_HOST_PORT=5173
 ```
+
+Minimal cloud proof checks after startup:
+
+```powershell
+curl http://localhost:9000/api/cloud-proof/feign/ai-status
+curl -X POST http://localhost:9000/api/cloud-proof/seata/commit
+curl -X POST http://localhost:9000/api/cloud-proof/seata/rollback
+curl http://localhost:9000/api/cloud-proof/sentinel/login-rule
+curl -X POST "http://localhost:9000/api/cloud-proof/sentinel/login-rule?qps=1"
+```
+
+Expected Seata evidence:
+
+- commit: `mainExists=true`, `aiExists=true`
+- rollback: `mainExists=false`, `aiExists=false`
+
+Nacos should list `academic-main`, `academic-ai-service`, and `edunexus-gateway`.
 
 If Docker Maven build fails with `bad_record_mac`, Central timeouts, or proxy problems, see `docs/docker-troubleshooting.md` and retry with:
 

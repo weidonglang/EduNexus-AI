@@ -47,6 +47,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+settings.yml
 
 ### Generated demo data ###
 reports/
